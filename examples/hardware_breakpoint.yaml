@@ -1,0 +1,15 @@
+---
+config:
+  max_depht: 10
+given:
+  pattern:
+    - call:
+      - "@any"
+      - "<ptrace@plt>"
+such-that:
+  - $a1 := argument($f, 1)
+  - $a3 := argument($f, 3)
+then:
+  - $a1 == 3
+  - $a3 == 848
+report: "Hardware breakpoint detection"

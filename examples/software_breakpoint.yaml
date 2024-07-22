@@ -1,0 +1,18 @@
+---
+config:
+  max_depht: 10
+given-pattern:
+  - add:
+      - $deref:
+          main_reg: "@any-dx"
+      - "@any"
+  - cmp
+    - "@any-y"
+    - "@any-z"
+where:
+  - $y -> $dx
+such-that:
+  - $y = $z
+then:
+  - $dx == 0xFA1E0FF3
+report: "Debuggind evation trough Software breakpoint detection"
