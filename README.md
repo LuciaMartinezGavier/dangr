@@ -68,6 +68,18 @@ report: "Possible debugging evasion detection"
    1. Thesis Document Writing: Document all findings, language design, implementation, and test results.
    2. Review and Correction: Review and correct the thesis document to ensure clarity and accuracy.
 
+| Plan de Trabajo                        |      |       |        |        |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
+| -------------------------------------- | ---- | ----- | ------ | ------ | ---- | ---- | ----- | ------ | ------ | ----- | ------ | ------ | ------ | ----- | ----- | ------ | ------ | ----- | ----- | ---- | ----- | ------ | ------ |
+| Tema\\Semana                           | J1-7 | J8-14 | J15-21 | J21-26 | A5-9 | S2-8 | S9-15 | S16-22 | S23-29 | O30-6 | O7--13 | O14-20 | O21-27 | N28-3 | N4-10 | N11-17 | N18-24 | N25-1 | D25-1 | D2-8 | D9-15 | D16-22 | D23-29 |
+| Plan de trabajo                        | x    | x     | x      |        |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
+| Prueba de concepto                     | x    | x     | x      |        |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
+| Introducción y Definición del Problema |      |       |        | x      |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
+| Diseño del Lenguaje Declarativo        | x    | x     |        |        | x    |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
+| Implementación del Transpilador        |      |       |        |        |      | x    | x     | x      | x      | x     | x      | x      |        |       |       |        |        |       |       |      |       |        |        |
+| Pruebas y Validación                   |      |       |        |        |      |      |       |        |        |       |        | x      | x      |       |       |        |        |       |       |      |       |        |        |
+| Estudio de Caso y Aplicaciones         |      |       |        |        |      |      |       |        |        |       |        |        |        | x     | x     |        |        |       |       |      |       |        |        |
+| Documentación y Redacción              |      |       |        |        |      |      |       |        |        |       |        |        |        |       |       | x      | x      | x     | x     | x    |       |        |        |
+| Preparación y Defensa                  |      |       |        |        |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       | x    | x     |        |
 ## References
 - Shoshitaishvili, Y., Wang, R., Salls, C., Stephens, N., Polino, M., Dutcher, A., Grosen, J., Feng, S., Hauser, C., Kruegel, C., & Vigna, G. (2016). SoK: (State of) The Art of War: Offensive Techniques in Binary Analysis. In IEEE Symposium on Security and Privacy.
 - Oravec, R. (2021). Modern Obfuscation Techniques (Master's thesis). Masaryk University, Faculty of Informatics.
