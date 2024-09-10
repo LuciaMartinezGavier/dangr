@@ -1,15 +1,17 @@
 ---
 config:
   max_depht: 10
+  solve_arguments: true
 given:
   pattern:
     - call:
       - "@any"
       - "<ptrace@plt>"
-such-that:
+      - anchore: $f
+where:
   - $a1 := argument($f, 1)
   - $a3 := argument($f, 3)
 then:
   - $a1 == 3
   - $a3 == 848
-report: "Hardware breakpoint detection"
+report: "Debuggind evation trough hardware breakpoint detection"
