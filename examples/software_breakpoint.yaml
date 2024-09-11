@@ -6,15 +6,16 @@ given:
     pattern: # structural pattern
     - add:
         - $deref:
-            main_reg: "@any-dx"
+            main_reg: "@any-dx" # Isn't this a pointer ??????????????????
+          # - anchore: dx # no es mejor así? 
         - "@any"
     - cmp
       - "@any-y"
       - "@any-z"
 where: # symbolic constraints
-  - $y -> $dx
+  - ($y -> $dx) or ($z -> $dx)
 such-that: # solver goals
   - $y = $z
 then: # aritmetic constraints
-  - $dx == 0xFA1E0FF3
+  - some_solution($dx == 0xFA1E0FF3)
 report: "Debuggind evasion trough Software breakpoint detection"

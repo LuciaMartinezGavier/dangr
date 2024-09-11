@@ -7,11 +7,10 @@ given:
     - call:
       - "@any"
       - "<ptrace@plt>"
-      - anchore: $f
+      - anchore: ptrace_call
 where:
-  - $a1 := argument($f, 1)
-  - $a3 := argument($f, 3)
+  - $a1 := argument(ptrace_call, 1)
+  - $a3 := argument(ptrace_call, 3)
 then:
-  - $a1 == 3
-  - $a3 == 848
+  - some_solution($a1 == 3 and  $a3 == 848)
 report: "Debuggind evation trough hardware breakpoint detection"
