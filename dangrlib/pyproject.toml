@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "dangrlib"
+version = "0.1.0"
+description = "This library provides the primitives to perform a symbolic analysis"
+authors = ["Lucía Martinez Gavier <lucia.m.gavier@mi.unc.edu.ar>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+angr = "^9.2.117"
+mypy = "^1.11.2"
+ipython = "^8.27.0"
+multipledispatch = "^1.0.0"
+multimethod = "^1.12"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
