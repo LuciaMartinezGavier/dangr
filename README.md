@@ -74,8 +74,8 @@ report: "Possible debugging evasion detection"
 | Plan de trabajo                        | x    | x     | x      |        |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
 | Prueba de concepto                     | x    | x     | x      |        |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
 | Introducción y Definición del Problema |      |       |        | x      |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
-| Diseño del Lenguaje Declarativo        | x    | x     |        |        | x    |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
-| Implementación del Transpilador        |      |       |        |        |      | x    | x     | x      | x      | x     | x      | x      |        |       |       |        |        |       |       |      |       |        |        |
+| Diseño del Lenguaje Declarativo        | x    | x     |        |        | x    |  x   |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
+| Implementación del Transpilador        |      |       |        |        |      |      |   x   | x      | x      | x     | x      | x      |        |       |       |        |        |       |       |      |       |        |        |
 | Pruebas y Validación                   |      |       |        |        |      |      |       |        |        |       |        | x      | x      |       |       |        |        |       |       |      |       |        |        |
 | Estudio de Caso y Aplicaciones         |      |       |        |        |      |      |       |        |        |       |        |        |        | x     | x     |        |        |       |       |      |       |        |        |
 | Documentación y Redacción              |      |       |        |        |      |      |       |        |        |       |        |        |        |       |       | x      | x      | x     | x     | x    |       |        |        |
@@ -89,8 +89,8 @@ report: "Possible debugging evasion detection"
 
 # Language definition
 
-### `given` and `where` sections
-The `given` section takes a pattern from JASM, which matches statically. This is intended to find the addresses where symbolic execution will be focused. It also defines variables that will be used in the rest of the code, i.e., variables mentioned in given can be used in all subsequent sections.
+### `given` section
+The `given` section takes a pattern from JASM, which matches sintactically. This is intended to find the addresses where symbolic execution will be focused. It also defines variables that will be used in the rest of the code, i.e., variables mentioned in given can be used in all subsequent sections.
 
 Example:
 
@@ -103,42 +103,28 @@ given:
     - cmp
 ```
 
-The `where` section will reduce the number of findings by setting some restrictions on the data flow, i.e., dependencies between variables. The syntax to express that the value of `$b` depends on `$a` is `$a -> $b`. For example:
+### `where`
+The `where` section will reduce the number of findings by setting some constraints over the symbolic variables.
+For example, here are the restrictions on the data flow `$a -> $b`. And some declaration of variables such as `a1 := argument(ptrace-call, 1)`
 
 ```yml
     where:
+    - $dx := *ptr
     - $y -> $dx
 ```
 
 ### `such-that` section
-The `such-that` section will set constraints for variables. For example,
+The `such-that` section will set solver goals. For example,
 
 ```yml
 such-that:
   - $y = $z
 ```
 
-This will reduce the possible values of the variables affecting `$y` and `$z` only to those that satisfy the `$y = $z` constraint.
-
-In such-that, you can also define some variables with :=, and there are some predefined methods that can be used. These are:
-- `argument(function, argument_index)`: Gets all possible values of the argument at `argument_index` in which the `function` was called.
-- `return(function)`: Gets all possible values of the return value of the `function`.
-
-For example:
-```yml
-given
-  pattern:
-    - call:
-      - pattern: "ptrace@plt"
-        reference: $f
-
-such-that:
-  - $a1 := argument($f, 1)
-  - $a3 := argument($f, 3)
-```
+Here the predicate `y = z` is forced to be True, so the possible values of both variables will be constrained to satisfy that condition.
 
 ### then section
-In this section, a predicate is defined.
+In this section, a predicate is evaluated with all the resulting possible values.
 
 For example,
 ```
