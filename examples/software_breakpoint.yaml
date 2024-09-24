@@ -6,16 +6,18 @@ given:
     pattern: # structural pattern
     - add:
         - $deref:
-            main_reg: "@any-dx" # Isn't this a pointer ??????????????????
-          # - anchore: dx # no es mejor así? 
+            main_reg: "@any-ptr"
         - "@any"
     - cmp
       - "@any-y"
       - "@any-z"
+        address-capture: cmp-address
 where: # symbolic constraints
-  - ($y -> $dx) or ($z -> $dx)
+  - dx := *ptr
+  - (dx -> y) or (dx -> z)
+  - analysis-end := cmp-address # mandatory and unique
 such-that: # solver goals
   - $y = $z
 then: # aritmetic constraints
-  - some_solution($dx == 0xFA1E0FF3)
+  - some_solution(dx == 0xFA1E0FF3)
 report: "Debuggind evasion trough Software breakpoint detection"

@@ -1,33 +1,48 @@
-from dangrlib import DangrAnalysis
+from dangr_analysis import DangrAnalysis
+from dangr_types import Address
+from variables import ConcreteState, Argument, Variable
+from jasm_findings import structural_filter, StructuralFinding
 
-
-def some_solution(args_values) -> bool:
-    return any([value["a1"] == 3 and value["a3"] == 848 for value in args_values])
+def some_solution(concrete_states: list[ConcreteState], a1: Variable, a3: Variable) -> bool:
+    return any(concr.get_value(a1) == 3 and concr.get_value(a3) == 848 for concr in concrete_states)
 
 
 def detect(binary_path: str, jasm_pattern: str) -> bool:
-    jasm_out = structural_filter(binary_path, jasm_pattern)
+    s_findings = structural_filter(binary_path, jasm_pattern)
+    dangr = DangrAnalysis(binary_path, max_depth=10)
 
-    dangr = DangrAnalysis(
-        max_depht=10,
-        binary_path=binary_path,
-    )
+    for struc_find in s_findings:
+        dangr.set_finding(struc_find)
 
-    for structural_finding in jasm_out:
-        set_finding(structural_finding)
+        ptrace_call = struc_find.address_captures["ptrace_call"]
+        vf = dangr.get_variable_factory()
+        a1 = vf.create_from_argument(Argument(1, ptrace_call))
+        a3 = vf.create_from_argument(Argument(3, ptrace_call))
+        dangr.add_variables([a1, a3])
 
-        registers_used = dang.args_used()
-        dangr.concrete_fn_args(registers_used)
+        list_concrete_values = dangr.concretize_fn_args()
 
-        # TODO: decide how is the address to find
-        dangr.simulate(jasm_out.addresses[-1])
+        found_states = dangr.simulate(ptrace_call, list_concrete_values)
 
-        # NOTE: this depends on how the `then` formula is written
-        # if the variables are in the same formula, they are evaluated together
-        args_values = concrete([Argument(1, "ptrace", "a1"), Argument(1, "ptrace", "a3")])
+        if not found_states:
+            return False
 
-        if some_solution(args_values):
+        concrete_states = []
+        a1_values = a1.evaluate()
+        a3_values = a3.evaluate()
+
+        all_states = set(a1_values.keys()).union(a3_values.keys())
+
+        for state in all_states:
+            concrete_state = ConcreteState()
+            concrete_state.add_value(a1, a1_values[state])
+            concrete_state.add_value(a3, a3_values[state])
+            concrete_states.append(concrete_state)
+
+        if some_solution(concrete_states, a1, a3):
             print("Debuggind evation trough hardware breakpoint detection")
             return True
 
     return False
+
+detect('/home/luciamg/debug_detection2/tests/test_files/hardware_breakpoint', '')
