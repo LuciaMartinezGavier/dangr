@@ -123,6 +123,8 @@ such-that:
 
 Here the predicate `y = z` is forced to be True, so the possible values of both variables will be constrained to satisfy that condition.
 
+(TODO) After the constraints are set, there is a check for satisfability.
+
 ### then section
 In this section, a predicate is evaluated with all the resulting possible values.
 

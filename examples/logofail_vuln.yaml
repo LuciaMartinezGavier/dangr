@@ -1,0 +1,15 @@
+---
+config:
+  solve_arguments: false
+given:
+  pattern:
+    - call:
+      - "@any"
+      - "<AllocatePool>"
+      address-capture: alloc-call
+where:
+  - size := argument(alloc-call, 1)
+  - analysis-end := alloc-call
+such-that:
+  - size = 0
+report: "Alloc can be called with 0 as argument"
