@@ -26,7 +26,7 @@ class DependencyAnalyzer:
         cfg = self.project.analyses.CFGEmulated(
             keep_state=True,
             starts=[start_address],
-            call_depth=1,
+            call_depth=10, # FIXME: poner como argumento
             state_add_options=angr.sim_options.refs
         )
         self.ddg = self.project.analyses.DDG(cfg=cfg, start=start_address)
@@ -61,9 +61,7 @@ class DependencyAnalyzer:
             ValueError: If the dependency graph has not been created.
         """
         if not self.ddg:
-            raise ValueError("Dependency graph is not created. Call create_dependency_graph() first.")
-
-
+            raise ValueError("Dependency graph is None. Call create_dependency_graph() first.")
         return self._instr_dep(source.reference_address, target.reference_address) and \
                self._variable_dep(source, target, simulator)
 
@@ -87,6 +85,12 @@ class DependencyAnalyzer:
         return any(isinstance(var, Memory) for var in self._simulate_to_get_deps(target, simulator))
 
     @multimethod
-    def _variable_dep(self, source: Register | Memory, target: Register | Memory | Deref, simulator: Simulator) -> bool:
+    def _variable_dep(self, source: Memory, target: Register | Memory | Deref, simulator: Simulator) -> bool:
         # Check if register is part of target
         return source in self._simulate_to_get_deps(target, simulator)
+
+    @multimethod
+    def _variable_dep(self, source: Register, target: Register | Memory | Deref, simulator: Simulator) -> bool:
+        # Check if register is part of target
+        reg_deps = [dep.name for dep in self._simulate_to_get_deps(target, simulator) if isinstance(dep, Register)]
+        return source.name in reg_deps

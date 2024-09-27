@@ -6,6 +6,7 @@ from dataclasses import dataclass
 class CaptureInfo:
     captured: str | int
     address: int
+# NOTE: Pattern obj  y Match obj
 
 class StructuralFinding:
     def __init__(self, instr_address: list[int], address_captures: dict[str, Address], captured_regs: dict[str, CaptureInfo] = {}):
@@ -29,7 +30,7 @@ def _parse_jasm_output():
 def structural_filter(binary_path, jasm_pattern) -> list[StructuralFinding]:
     _run_jasm()
     _parse_jasm_output()
-    return hardware_breakpoint_mock()
+    return uncontrolled_input_mock()
 
 def hardware_breakpoint_mock() -> list[StructuralFinding]:
     return [StructuralFinding([0x401297], {"ptrace_call": 0x401297})]
@@ -62,3 +63,11 @@ def software_breakpoint_mock() -> list[StructuralFinding]:
         }
     )]
 
+def uncontrolled_input_mock() -> list[StructuralFinding]:
+    return [StructuralFinding(
+        [0x4011bf],
+        {'deref-address': 0x4011bf},
+        {
+            'ptr': CaptureInfo('rax', 0x4011bf),
+        }
+    )]

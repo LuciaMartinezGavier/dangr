@@ -23,7 +23,7 @@ import angr
 import claripy
 
 from jasm_findings import CaptureInfo
-from dangr_types import Address, AngrExpr
+from dangr_types import Address, AngrExpr, BYTE_SIZE
 
 
 class Variable(ABC):
@@ -122,6 +122,9 @@ class Variable(ABC):
             for state in self.reference_states # type: ignore[union-attr]
         )
 
+    @ref_state_is_set
+    def bit_size(self) -> 0:
+        return BYTE_SIZE*(self.reference_states[0].block().capstone.insns[0].operands[0].size)
 
 class Register(Variable):
     """
@@ -218,12 +221,9 @@ class Literal(Variable):
     @Variable.ref_state_is_set
     def angr_repr(self) -> dict[angr.SimState, AngrExpr]:
         return {
-            state: claripy.BVV(self.value, self._size(state))
+            state: claripy.BVV(self.value, self.bit_size())
             for state in self.reference_states # type: ignore[union-attr]
         }
-
-    def _size(self, state: angr.SimState) -> int:
-        return 8*(state.block().capstone.insns[0].operands[0].size)
 
     @override
     def set_ref_state(self, states: list[angr.SimState]) -> None:
@@ -267,7 +267,7 @@ class Deref(Variable):
     @Variable.ref_state_is_set
     def angr_repr(self) -> dict[angr.SimState, AngrExpr]:
         return {
-            state: state.memory.load(self.base.angr_repr()[state], self._get_memory_size(state))
+            state: state.memory.load(self.base.angr_repr()[state], self.bit_size()/BYTE_SIZE)
             for state in self.reference_states # type: ignore[union-attr]
         }
 
@@ -280,7 +280,7 @@ class Deref(Variable):
     @Variable.ref_state_is_set
     def set_value(self, value: int) -> None:
         for state in self.reference_states: # type: ignore[union-attr]
-            state.memory.store(self.base.angr_repr()[state], value, self._get_memory_size(state))
+            state.memory.store(self.base.angr_repr()[state], value, self.bit_size()/BYTE_SIZE)
 
     @Variable.ref_state_is_set
     def evaluate_memory(self, state: angr.SimState) -> list[int]:
@@ -294,13 +294,10 @@ class Deref(Variable):
         return [
             state.solver.eval(
                 state.memory.load(self.base.angr_repr()[der_state],
-                self._get_memory_size(der_state))
+                self.bit_size()/BYTE_SIZE)
             )
             for der_state in self.reference_states # type: ignore[union-attr]
         ]
-
-    def _get_memory_size(self, state: angr.SimState) -> int:
-        return state.block().capstone.insns[0].operands[0].size
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Deref):

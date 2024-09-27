@@ -1,7 +1,7 @@
 from dangr_analysis import DangrAnalysis
 from jasm_findings import structural_filter
 from variables import ConcreteState, Deref, Variable
-from constraint import EqualNode, VarNode
+from expression import EqualNode, VarNode
 
 def some_solution(concrete_states: list[ConcreteState], dx: Variable) -> bool:
     return any(0xf30f1efa == concr.get_value(dx) for concr in concrete_states)

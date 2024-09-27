@@ -2,11 +2,12 @@ from typing import Final
 from collections import namedtuple
 from functools import wraps
 import angr
+from itertools import product
 
 from jasm_findings import StructuralFinding
-from dangr_types import Address, Path
+from dangr_types import Address, Path, ALLIGNMENT_OFFSET
 from variables import VariableFactory, Variable, ConcreteState
-from constraint import ExpressionNode
+from expression import ExpressionNode
 from simulation_manager import Simulator, ForwardSimulation, StepSimulation
 from arguments_analyzer import ArgumentsAnalyzer
 from dependency_analyzer import DependencyAnalyzer
@@ -29,6 +30,7 @@ class DangrAnalysis:
         self.variable_factory = VariableFactory()
         self.dependency_analyzer = DependencyAnalyzer(self.project)
         self.simulator: Simulator | None = None
+        self.arguments_analyzer = ArgumentsAnalyzer(self.project, self.cfg)
 
         # structural finding related
         self.struct_f: StructuralFinding | None = None
@@ -94,6 +96,9 @@ class DangrAnalysis:
         raise ValueError(f'Function not found for target address {hex(self.struct_f.start)}')
 
 
+    def get_fn_args(self) -> list[Variable]:
+        return self.arguments_analyzer.get_fn_args(self.current_function)
+
     @struct_finding_is_set
     def concretize_fn_args(self) -> list[ConcreteState]:
         """
@@ -103,9 +108,7 @@ class DangrAnalysis:
         Returns:
             list[ConcreteState]: all the possible combinations of the arguments values
         """
-        arguments_analyzer = ArgumentsAnalyzer(self.project, self.cfg)
-        args_used = arguments_analyzer.get_fn_args(self.variables, self.current_function)
-        return arguments_analyzer.solve_arguments(self.current_function, args_used)
+        return self.arguments_analyzer.solve_arguments(self.current_function, self.get_fn_args())
 
     @struct_finding_is_set
     def simulate(
@@ -157,7 +160,7 @@ class DangrAnalysis:
         for constraint in self.constraints:
             stop_points.add_constraint(constraint.constraint_address(), constraint)
 
-        if stop_points.last_address() < target:
+        if not stop_points.last_address() or stop_points.last_address() < target:
             stop_points.add_address(target)
 
         return stop_points.sorted()
@@ -175,8 +178,11 @@ class DangrAnalysis:
         simulator = ForwardSimulation(self.project, self.current_function)
         return self.dependency_analyzer.check_dependency(source, target, simulator)
 
-    def is_bounded(self, state: angr.SimState, expr_tree: ExpressionNode):
-        all(state.solver.max(expr) < 2**f.regs.rax.size-ALLIGNMENT for expr in expr_tree.create_expressions())
+    def upper_bounded(self, expr_tree: ExpressionNode, states: list[angr.SimState]) -> bool:
+        return all(
+            state.solver.max(expr) < 2**expr_tree.bit_size()-ALLIGNMENT_OFFSET
+            for expr, state in product(expr_tree.create_expressions(), states)
+        )
 
 StopPointGroup = namedtuple('StopPointGroup', ['variables', 'constraints'])
 
@@ -211,5 +217,8 @@ class StopPoints(dict):
     def get_items(self):
         return self.items()
 
-    def last_address(self) -> Address:
+    def last_address(self) -> Address | None:
+        if not self:
+            return None
+
         return self.sorted()[-1][0]

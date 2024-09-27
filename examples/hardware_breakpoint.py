@@ -1,7 +1,6 @@
 from dangr_analysis import DangrAnalysis
-from dangr_types import Address
 from variables import ConcreteState, Argument, Variable
-from jasm_findings import structural_filter, StructuralFinding
+from jasm_findings import structural_filter
 
 def some_solution(concrete_states: list[ConcreteState], a1: Variable, a3: Variable) -> bool:
     return any(concr.get_value(a1) == 3 and concr.get_value(a3) == 848 for concr in concrete_states)

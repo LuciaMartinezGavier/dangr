@@ -1,8 +1,9 @@
 from typing import Final
 import angr
-from variables import ConcreteState, Variable
+import pyvex
+from variables import ConcreteState, Variable, Register
 from simulation_manager import BackwardSimulation, ForwardSimulation
-from dangr_types import Address
+from dangr_types import Address, CFGNode
 
 class ArgumentsAnalyzer:
     """
@@ -18,19 +19,37 @@ class ArgumentsAnalyzer:
         self.project: Final = project
         self.cfg: Final = cfg
         self.max_depth = max_depth
+        self.first_read_addrs = {}
 
-    def get_fn_args(self, hints: list[Variable], fn_addr: Address) -> list[Variable]:
+    def get_fn_args(self, fn_addr: Address) -> list[Variable]:
         """
-        Returns the arguments used in the function from address `fn_addr`
-        The hints say which variables are relevant to the analysis
+        Returns the arguments of the function from address `fn_addr`
         """
-        simulator = ForwardSimulation(self.project, fn_addr)
-        dependencies = []
-        for hint in hints:
-            states = simulator.simulate(target=hint.reference_address)
-            hint.set_ref_state(states)
-            dependencies.extend(hint.dependencies())
-        return dependencies
+        func = self.cfg.functions.get(fn_addr)
+        self.project.analyses.VariableRecoveryFast(func)
+        cca = self.project.analyses.CallingConvention(func, self.cfg, analyze_callsites=True)
+
+        self.first_read_addrs = {reg.reg_name: None for reg in cca.cc.arg_locs(cca.prototype)}
+        state = self.project.factory.blank_state(addr=fn_addr)
+        simulation = self.project.factory.simgr(state)
+
+        state.inspect.b('reg_read', action=self._record_reg_read, when=angr.BP_AFTER)
+
+        while simulation.active and not all(self.first_read_addrs.values()):
+            simulation.step()
+
+        return [Register(name, addr) for name, addr in self.first_read_addrs.items()]
+
+
+    def _record_reg_read(self, state: angr.SimState) -> None:
+        """Record the instruction address of the first read of the register."""
+        offset = state.solver.eval(state.inspect.reg_read_offset)
+        reg_name = self.project.arch.translate_register_name(offset)
+
+        if reg_name in self.first_read_addrs and self.first_read_addrs[reg_name] is None:
+            self.first_read_addrs[reg_name] = state.addr
+
+
 
     def solve_arguments(self, fn_addr: Address, args: list[Variable]) -> list[ConcreteState]:
         """
