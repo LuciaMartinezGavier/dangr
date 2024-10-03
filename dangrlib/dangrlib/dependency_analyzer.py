@@ -5,7 +5,7 @@ from itertools import product
 from dangr_types import Address
 from variables import Variable, Literal, Register, Memory, Deref
 from multimethod import multimethod
-from simulation_manager import Simulator
+from simulation_manager import ForwardSimulation, Simulator
 
 class DependencyAnalyzer:
     """
@@ -46,7 +46,7 @@ class DependencyAnalyzer:
     def _find_reference_nodes(self, addr: Address) -> list[angr.code_location.CodeLocation]:
         return [node for node in self.ddg.graph.nodes() if node.ins_addr == addr]
 
-    def check_dependency(self, source: Variable, target: Variable, simulator: Simulator) -> bool:
+    def check_dependency(self, source: Variable, target: Variable, func_addr: Address) -> bool:
         """
         Check if `source` affects the value of `target`
 
@@ -63,34 +63,35 @@ class DependencyAnalyzer:
         if not self.ddg:
             raise ValueError("Dependency graph is None. Call create_dependency_graph() first.")
         return self._instr_dep(source.reference_address, target.reference_address) and \
-               self._variable_dep(source, target, simulator)
+               self._variable_dep(source, target, func_addr)
 
     @multimethod
-    def _variable_dep(self, source: Variable, target: Literal, simulator: Simulator) -> bool:
+    def _variable_dep(self, source: Variable, target: Literal, func_addr: Address) -> bool:
         return False
 
     @multimethod
-    def _variable_dep(self, source: Literal, target: Memory | Register | Deref, simulator: Simulator) -> bool:
+    def _variable_dep(self, source: Literal, target: Memory | Register | Deref, func_addr: Address) -> bool:
         # Literal might affect Memory or Register and that depends on the ddg only
         return True
 
-    def _simulate_to_get_deps(self, target: Variable, simulator: Simulator) -> list[angr.SimState]:
-        states = simulator.simulate(target.reference_address)
+    def _simulate_to_get_deps(self, target: Variable, func_addr) -> list[angr.SimState]:
+        simulator = ForwardSimulation(self.project, func_addr, target=target.reference_address)
+        states = simulator.simulate()
         target.set_ref_state(states)
         return target.dependencies()
 
     @multimethod
-    def _variable_dep(self, source: Deref, target: Register | Memory | Deref, simulator: Simulator) -> bool:
-        # Check is source depends on *any* 
-        return any(isinstance(var, Memory) for var in self._simulate_to_get_deps(target, simulator))
+    def _variable_dep(self, source: Deref, target: Register | Memory | Deref, func_addr: Address) -> bool:
+        # Check is source depends on *any*
+        return any(isinstance(var, Memory) for var in self._simulate_to_get_deps(target, func_addr))
 
     @multimethod
-    def _variable_dep(self, source: Memory, target: Register | Memory | Deref, simulator: Simulator) -> bool:
+    def _variable_dep(self, source: Memory, target: Register | Memory | Deref, func_addr: Address) -> bool:
         # Check if register is part of target
-        return source in self._simulate_to_get_deps(target, simulator)
+        return source in self._simulate_to_get_deps(target, func_addr)
 
     @multimethod
-    def _variable_dep(self, source: Register, target: Register | Memory | Deref, simulator: Simulator) -> bool:
+    def _variable_dep(self, source: Register, target: Register | Memory | Deref, func_addr: Address) -> bool:
         # Check if register is part of target
-        reg_deps = [dep.name for dep in self._simulate_to_get_deps(target, simulator) if isinstance(dep, Register)]
+        reg_deps = [dep.name for dep in self._simulate_to_get_deps(target, func_addr) if isinstance(dep, Register)]
         return source.name in reg_deps

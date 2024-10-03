@@ -70,7 +70,7 @@ class DangrAnalysis:
 
         # Restart analysis
         self.current_function = self._find_function()
-        self.simulator = StepSimulation(self.project, self.current_function)
+        self.simulator = StepSimulation(project=self.project, init_addr=self.current_function)
         self.dependency_analyzer.create_dependency_graph(self.current_function)
         self.constraints = []
         self.variables = []
@@ -87,7 +87,7 @@ class DangrAnalysis:
             typically caused by the jasm pattern spanning multiple functions.
         """
         if self.struct_f is None:
-            raise ValueError(f'Structural finding not set')
+            raise ValueError('Structural finding not set')
 
         for fn in self.cfg.kb.functions.values():
             if (fn.addr <= self.struct_f.start) and (self.struct_f.end <= fn.addr + fn.size):
@@ -123,12 +123,14 @@ class DangrAnalysis:
         for addr, action_elem in stop_points:
 
             found_states: list[angr.SimState] = []
+            self.simulator.set_step_target(target=addr)
 
             if init_states is None:
-                found_states.extend(self.simulator.simulate(target=addr))
+                found_states.extend(self.simulator.simulate())
             else:
                 for init_state in init_states:
-                    found_states.extend(self.simulator.simulate(target=addr, concrete_state=init_state))
+                    self.simulator.set_inital_values(init_state)
+                    found_states.extend(self.simulator.simulate())
 
             self._set_states_to_vars(action_elem.variables, found_states)
             self._add_constraints_to_states(action_elem.constraints, found_states)
@@ -175,8 +177,7 @@ class DangrAnalysis:
         """
         Calculates dependencies of a given variable
         """
-        simulator = ForwardSimulation(self.project, self.current_function)
-        return self.dependency_analyzer.check_dependency(source, target, simulator)
+        return self.dependency_analyzer.check_dependency(source, target, self.current_function)
 
     def upper_bounded(self, expr_tree: ExpressionNode, states: list[angr.SimState]) -> bool:
         return all(

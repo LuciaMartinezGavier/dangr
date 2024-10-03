@@ -1,9 +1,8 @@
 from typing import Final
 import angr
-import pyvex
 from variables import ConcreteState, Variable, Register
-from simulation_manager import BackwardSimulation, ForwardSimulation
-from dangr_types import Address, CFGNode
+from simulation_manager import BackwardSimulation, HookSimulation
+from dangr_types import Address
 
 class ArgumentsAnalyzer:
     """
@@ -30,14 +29,18 @@ class ArgumentsAnalyzer:
         cca = self.project.analyses.CallingConvention(func, self.cfg, analyze_callsites=True)
 
         self.first_read_addrs = {reg.reg_name: None for reg in cca.cc.arg_locs(cca.prototype)}
-        state = self.project.factory.blank_state(addr=fn_addr)
-        simulation = self.project.factory.simgr(state)
 
-        state.inspect.b('reg_read', action=self._record_reg_read, when=angr.BP_AFTER)
+        h_simulator = HookSimulation(
+            project=self.project,
+            init_addr=fn_addr,
+            event='reg_read',
+            action=self._record_reg_read,
+            context=self.first_read_addrs,
+            when=angr.BP_AFTER,
+            stop=lambda ctx: all(ctx.values())
+        )
 
-        while simulation.active and not all(self.first_read_addrs.values()):
-            simulation.step()
-
+        h_simulator.simulate()
         return [Register(name, addr) for name, addr in self.first_read_addrs.items()]
 
 
@@ -48,7 +51,6 @@ class ArgumentsAnalyzer:
 
         if reg_name in self.first_read_addrs and self.first_read_addrs[reg_name] is None:
             self.first_read_addrs[reg_name] = state.addr
-
 
 
     def solve_arguments(self, fn_addr: Address, args: list[Variable]) -> list[ConcreteState]:
@@ -67,8 +69,15 @@ class ArgumentsAnalyzer:
         if not args:
             return [ConcreteState()]
 
-        simulator = BackwardSimulation(self.project, self.cfg, args, self.max_depth)
-        found_states = simulator.simulate(fn_addr)
+        simulator = BackwardSimulation(
+            project=self.project,
+            target=fn_addr,
+            cfg=self.cfg,
+            variables=args,
+            max_depth=self.max_depth
+        )
+
+        found_states = simulator.simulate()
         return [self._get_args_values(args, state) for state in found_states]
 
     def _get_args_values(self, args: list[Variable], state: angr.SimState) -> ConcreteState:

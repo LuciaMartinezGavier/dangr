@@ -3,7 +3,8 @@ from typing import override, Final
 from dataclasses import dataclass
 from angr import SimState, SimulationManager
 from variables import ConcreteState, Variable
-from dangr_types import Address, CFGNode
+from dangr_types import Address, CFGNode, Context
+import angr
 
 EXTERNAL_ADDR_SPACE_BASE: Final = 0x500000
 ENDBR64_MNEMONIC: Final = 'endbr64'
@@ -21,30 +22,36 @@ class Simulator(ABC):
     """
     def __init__(self, project) -> None:
         self.project = project
+        self.initial_values: None | ConcreteState = None
 
-    def initialize_state(self, concrete_state: ConcreteState | None, state: SimState) -> None:
+    def _initialize_state(self, start: Address) -> SimState:
         """"
         Sets the initial values from concrete_state in the given state
         Modifies state
         """
-        if concrete_state is None:
-            return
+        state = self.project.factory.blank_state(addr=start)
 
-        for var, value in concrete_state.get_items():
+        if self.initial_values is None:
+            return state
+
+        for var, value in self.initial_values.get_items():
             var.set_ref_state([state])
             var.set_value(value)
 
-    @abstractmethod
-    def simulate(
-        self,
-        target: Address,
-        concrete_state: ConcreteState | None = None
-    ) -> list[SimState]:
+        return state
+
+    def set_inital_values(self, initial_values: ConcreteState) -> None:
         """
-        Excecutes simbolically until reaching the target.
+        Set values for the initial state of the simulation
+        """
+        self.initial_values = initial_values
+
+    @abstractmethod
+    def simulate(self) -> list[SimState]:
+        """
+        Excecutes simbolically.
 
         Arguments:
-            target (Address): the target to find
             concrete_state (ConcreteState): the values to initialize the simulation
 
         Returns
@@ -57,31 +64,17 @@ class ForwardSimulation(Simulator):
     """
     Simulate until reaching a target
     """
-    def __init__(self, project, init_addr) -> None:
+    def __init__(self, project, init_addr, target) -> None:
         super().__init__(project)
         self.init_addr = init_addr
+        self.target = target
 
     @override
-    def simulate(
-        self,
-        target: Address,
-        concrete_state: ConcreteState | None = None
-    ) -> list[SimState]:
-        """
-        Excecutes simbolically from `self.init_addr` until reaching the target.
+    def simulate(self) -> list[SimState]:
+        initial_state = self._initialize_state(self.init_addr)
 
-        Arguments:
-            target (Address): the target to find
-            concrete_state (ConcreteState): the values to initialize the simulation
-
-        Returns
-            list[SimState]: the list of states on which the target was found
-
-        """
-        initial_state = self.project.factory.blank_state(addr=self.init_addr)
-        self.initialize_state(concrete_state, initial_state)
         simulation = self.project.factory.simulation_manager(initial_state)
-        simulation.explore(find=target)
+        simulation.explore(find=self.target)
         return simulation.found
 
 
@@ -94,21 +87,20 @@ class StepSimulation(Simulator):
     def __init__(self, project, init_addr) -> None:
         super().__init__(project)
         self.init_addr = init_addr
+
+        self.target: Address | None = None
         self.previous_states: list[SimState] | SimState | None = None
 
-    def simulate(
-        self,
-        target: Address,
-        concrete_state: ConcreteState | None = None
-    ) -> list[SimState]:
+    def set_step_target(self, target: Address) -> None:
+        self.target = target
 
+    def simulate(self) -> list[SimState]:
         if self.previous_states is None:
-            initial_state = self.project.factory.blank_state(addr=self.init_addr)
-            self.initialize_state(concrete_state, initial_state)
+            initial_state = self._initialize_state(self.init_addr)
             self.previous_states = initial_state
 
         simulation = self.project.factory.simulation_manager(self.previous_states)
-        simulation.explore(find=target)
+        simulation.explore(find=self.target)
         self.previous_states = simulation.found
 
         return simulation.found
@@ -123,29 +115,24 @@ class BackwardSimulation(Simulator):
     """
     Simualte backwards until variables are concrete
     """
-    def __init__(self, project, cfg, variables: list[Variable], max_depth: int | None) -> None:
+    def __init__(self, project, target, cfg, variables: list[Variable], max_depth: int | None) -> None:
         super().__init__(project)
+        self.target = target
         self.cfg = cfg
         self.variables = variables
         self.states_found: list[SimState] = []
         self.max_depth: Final = max_depth if max_depth else 2
 
     @override
-    def simulate(
-        self,
-        target: Address,
-        concrete_state: ConcreteState | None = None
-    ) -> list[SimState]:
-
-        target_node = self.cfg.get_any_node(target)
+    def simulate(self) -> list[SimState]:
+        target_node = self.cfg.get_any_node(self.target)
         rec_ctx = RecursiveCtx(0, None, [target_node])
-        self._rec_simulate(target_node, concrete_state, rec_ctx)
+        self._rec_simulate(target_node, rec_ctx)
         return self.states_found
 
     def _rec_simulate(
         self,
         target_node: CFGNode,
-        initial_values: ConcreteState | None,
         rec_ctx: RecursiveCtx
     ) -> None:
         """
@@ -156,7 +143,7 @@ class BackwardSimulation(Simulator):
         it returns the concrete values of the registers in that path.
         """
         initial_node = rec_ctx.path[-1]
-        state = self._simulate_slice(initial_node.addr, target_node, rec_ctx.path, initial_values)
+        state = self._simulate_slice(initial_node.addr, target_node, rec_ctx.path)
 
         if not state or rec_ctx.current_depht >= self.max_depth:
             self.states_found.append(rec_ctx.backup_state)
@@ -173,7 +160,7 @@ class BackwardSimulation(Simulator):
         for pred in [p for p in self.cfg.get_predecessors(initial_node) if p not in rec_ctx.path]:
             rec_ctx.current_depht = rec_ctx.current_depht + 1
             rec_ctx.path = rec_ctx.path + [pred]
-            self._rec_simulate(target_node, initial_values, rec_ctx)
+            self._rec_simulate(target_node, rec_ctx)
 
 
     def _simulate_slice(
@@ -181,11 +168,9 @@ class BackwardSimulation(Simulator):
         start: Address,
         target_node: CFGNode,
         pred: list[CFGNode],
-        initial_concrete_state: ConcreteState | None
     ) -> SimState | None:
 
-        initial_state = self.project.factory.blank_state(addr=start)
-        self.initialize_state(initial_concrete_state, initial_state)
+        initial_state = self._initialize_state(start)
         simgr = self.project.factory.simulation_manager(initial_state)
         state_found: SimState | None = None
 
@@ -213,3 +198,48 @@ class BackwardSimulation(Simulator):
 
         return already_visited or\
                (not is_external_block and not is_in_slice and not is_start_of_func)
+
+class HookSimulation(Simulator):
+    """
+    Simulate until reaching a target
+    """
+    def __init__(
+        self,
+        project,
+        init_addr: Address,
+        event: str,
+        action,
+        context: Context,
+        when,
+        stop
+    ) -> None:
+
+        super().__init__(project)
+        self.init_addr = init_addr
+        self.event = event
+        self.action = action
+        self.context = context
+        self.when = when
+        self.stop = stop
+
+    @override
+    def simulate(self) -> list[SimState]:
+        """
+        Excecutes simbolically from `self.init_addr` until reaching the target.
+
+        Arguments:
+            target (Address): the target to find
+            concrete_state (ConcreteState): the values to initialize the simulation
+
+        Returns
+            list[SimState]: the list of states on which the target was found
+
+        """
+        initial_state = self._initialize_state(self.init_addr)
+        simulation = self.project.factory.simulation_manager(initial_state)
+        initial_state.inspect.b(self.event, action=self.action, when=self.when)
+
+        while simulation.active and not self.stop(self.context):
+            simulation.step()
+
+        return simulation.active
