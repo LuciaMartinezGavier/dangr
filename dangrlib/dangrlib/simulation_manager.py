@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import override, Final
 from dataclasses import dataclass
-from angr import SimState, SimulationManager
-from variables import ConcreteState, Variable
-from dangr_types import Address, CFGNode, Context
-import angr
+from angr import SimState, SimulationManager, BP_AFTER
+from copy import deepcopy
+
+from dangrlib.variables import ConcreteState, Variable
+from dangrlib.dangr_types import Address, CFGNode, Context
 
 EXTERNAL_ADDR_SPACE_BASE: Final = 0x500000
 ENDBR64_MNEMONIC: Final = 'endbr64'
@@ -71,12 +72,20 @@ class ForwardSimulation(Simulator):
 
     @override
     def simulate(self) -> list[SimState]:
-        initial_state = self._initialize_state(self.init_addr)
+        found_states = []
 
-        simulation = self.project.factory.simulation_manager(initial_state)
-        simulation.explore(find=self.target)
-        return simulation.found
+        initial = self._initialize_state(self.init_addr)
+        simulation = self.project.factory.simulation_manager(initial)
 
+        initial.inspect.b(
+            'instruction', when=BP_AFTER, instruction=self.target,
+            action=lambda state: found_states.append(deepcopy(state))
+        )
+
+        while simulation.active:
+            simulation.step()
+
+        return found_states
 
 class StepSimulation(Simulator):
     """
@@ -96,8 +105,8 @@ class StepSimulation(Simulator):
 
     def simulate(self) -> list[SimState]:
         if self.previous_states is None:
-            initial_state = self._initialize_state(self.init_addr)
-            self.previous_states = initial_state
+            initial = self._initialize_state(self.init_addr)
+            self.previous_states = initial
 
         simulation = self.project.factory.simulation_manager(self.previous_states)
         simulation.explore(find=self.target)
@@ -170,8 +179,8 @@ class BackwardSimulation(Simulator):
         pred: list[CFGNode],
     ) -> SimState | None:
 
-        initial_state = self._initialize_state(start)
-        simgr = self.project.factory.simulation_manager(initial_state)
+        initial = self._initialize_state(start)
+        simgr = self.project.factory.simulation_manager(initial)
         state_found: SimState | None = None
 
         while simgr.active and not state_found:
@@ -235,9 +244,9 @@ class HookSimulation(Simulator):
             list[SimState]: the list of states on which the target was found
 
         """
-        initial_state = self._initialize_state(self.init_addr)
-        simulation = self.project.factory.simulation_manager(initial_state)
-        initial_state.inspect.b(self.event, action=self.action, when=self.when)
+        initial = self._initialize_state(self.init_addr)
+        simulation = self.project.factory.simulation_manager(initial)
+        initial.inspect.b(self.event, action=self.action, when=self.when)
 
         while simulation.active and not self.stop(self.context):
             simulation.step()

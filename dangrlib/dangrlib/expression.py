@@ -1,8 +1,8 @@
 from typing import override
 from abc import ABC, abstractmethod
 from itertools import product
-from dangr_types import AngrExpr, Address
-from variables import Variable
+from dangrlib.dangr_types import AngrExpr, Address
+from dangrlib.variables import Variable
 
 class ExpressionNode(ABC):
 
@@ -18,7 +18,8 @@ class ExpressionNode(ABC):
         Get the address on which the Expression should be applied
         """
 
-    def bit_size(self) -> int:
+    @abstractmethod
+    def size(self) -> int:
         """
         Return the size (in bits) of the expression
         """
@@ -33,11 +34,11 @@ class VarNode(ExpressionNode):
 
     @override
     def expression_address(self) -> Address:
-        return self.variable.reference_address
+        return self.variable.ref_addr
 
     @override
-    def bit_size(self) -> int:
-        return self.variable.bit_size()
+    def size(self) -> int:
+        return self.variable.size()
 
 class BinaryOpNode(ExpressionNode):
     def __init__(self, lh: ExpressionNode, rh: ExpressionNode):
@@ -53,10 +54,10 @@ class BinaryOpNode(ExpressionNode):
         return max(self.lh.expression_address(), self.rh.expression_address())
 
     @override
-    def bit_size(self) -> int:
-        size = self.lh.bit_size()
+    def size(self) -> int:
+        size = self.lh.size()
 
-        if size != self.rh.bit_size():
+        if size != self.rh.size():
             raise ValueError("Mismatch of expression sizes")
 
         return size

@@ -1,20 +1,26 @@
-import angr
+from typing import Final
+from itertools import product
 from networkx import DiGraph
 from networkx.algorithms import has_path
-from itertools import product
-from dangr_types import Address
-from variables import Variable, Literal, Register, Memory, Deref
 from multimethod import multimethod
-from simulation_manager import ForwardSimulation, Simulator
+import angr
+
+from dangrlib.dangr_types import Address
+from dangrlib.variables import Variable, Literal, Register, Memory, Deref, VariableFactory
+from dangrlib.simulation_manager import ForwardSimulation
 
 class DependencyAnalyzer:
     """
     A class for analyzing dependencies between variables in a binary program using a
     Dependency Dependency Graph (DDG).
     """
-    def __init__(self, project: angr.Project):
+    CALL_DEPTH_DEFAULT: Final = 10
+
+    def __init__(self, project: angr.Project, variable_factory: VariableFactory, call_depth: int | None = None):
         self.project = project
         self.ddg: DiGraph | None = None
+        self.call_depth = call_depth or self.CALL_DEPTH_DEFAULT
+        self.variable_factory = variable_factory
 
     def create_dependency_graph(self, start_address: Address) -> None:
         """
@@ -26,9 +32,10 @@ class DependencyAnalyzer:
         cfg = self.project.analyses.CFGEmulated(
             keep_state=True,
             starts=[start_address],
-            call_depth=10, # FIXME: poner como argumento
-            state_add_options=angr.sim_options.refs
+            call_depth=self.call_depth,
+            state_add_options=angr.sim_options.refs | {angr.sim_options.NO_CROSS_INSN_OPT},
         )
+
         self.ddg = self.project.analyses.DDG(cfg=cfg, start=start_address)
 
     def _instr_dep(self, source: Address, target: Address) -> bool:
@@ -62,7 +69,7 @@ class DependencyAnalyzer:
         """
         if not self.ddg:
             raise ValueError("Dependency graph is None. Call create_dependency_graph() first.")
-        return self._instr_dep(source.reference_address, target.reference_address) and \
+        return self._instr_dep(source.ref_addr, target.ref_addr) and \
                self._variable_dep(source, target, func_addr)
 
     @multimethod
@@ -75,14 +82,14 @@ class DependencyAnalyzer:
         return True
 
     def _simulate_to_get_deps(self, target: Variable, func_addr) -> list[angr.SimState]:
-        simulator = ForwardSimulation(self.project, func_addr, target=target.reference_address)
+        simulator = ForwardSimulation(self.project, func_addr, target=target.ref_addr)
         states = simulator.simulate()
         target.set_ref_state(states)
-        return target.dependencies()
+        return target.dependencies(self.variable_factory)
 
     @multimethod
     def _variable_dep(self, source: Deref, target: Register | Memory | Deref, func_addr: Address) -> bool:
-        # Check is source depends on *any*
+        # Check is source depends on *any* Memory
         return any(isinstance(var, Memory) for var in self._simulate_to_get_deps(target, func_addr))
 
     @multimethod
@@ -90,8 +97,9 @@ class DependencyAnalyzer:
         # Check if register is part of target
         return source in self._simulate_to_get_deps(target, func_addr)
 
+
     @multimethod
     def _variable_dep(self, source: Register, target: Register | Memory | Deref, func_addr: Address) -> bool:
         # Check if register is part of target
-        reg_deps = [dep.name for dep in self._simulate_to_get_deps(target, func_addr) if isinstance(dep, Register)]
-        return source.name in reg_deps
+        reg_deps = [dep.normalized_name() for dep in self._simulate_to_get_deps(target, func_addr) if isinstance(dep, Register)]
+        return source.normalized_name() in reg_deps

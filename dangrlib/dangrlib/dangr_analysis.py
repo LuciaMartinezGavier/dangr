@@ -4,13 +4,13 @@ from functools import wraps
 import angr
 from itertools import product
 
-from jasm_findings import StructuralFinding
-from dangr_types import Address, Path, ALLIGNMENT_OFFSET
-from variables import VariableFactory, Variable, ConcreteState
-from expression import ExpressionNode
-from simulation_manager import Simulator, ForwardSimulation, StepSimulation
-from arguments_analyzer import ArgumentsAnalyzer
-from dependency_analyzer import DependencyAnalyzer
+from dangrlib.jasm_findings import StructuralFinding
+from dangrlib.dangr_types import Address, Path, ALLIGNMENT_OFFSET, BYTE_SIZE
+from dangrlib.variables import VariableFactory, Variable, ConcreteState
+from dangrlib.expression import ExpressionNode
+from dangrlib.simulation_manager import Simulator, StepSimulation
+from dangrlib.arguments_analyzer import ArgumentsAnalyzer
+from dangrlib.dependency_analyzer import DependencyAnalyzer
 
 class DangrAnalysis:
     """
@@ -27,8 +27,8 @@ class DangrAnalysis:
         self.cfg: Final = self.project.analyses.CFGFast()
 
         # helper modules init
-        self.variable_factory = VariableFactory()
-        self.dependency_analyzer = DependencyAnalyzer(self.project)
+        self.variable_factory = VariableFactory(self.project)
+        self.dependency_analyzer = DependencyAnalyzer(self.project, self.variable_factory)
         self.simulator: Simulator | None = None
         self.arguments_analyzer = ArgumentsAnalyzer(self.project, self.cfg)
 
@@ -157,7 +157,7 @@ class DangrAnalysis:
         stop_points = StopPoints()
 
         for variable in self.variables:
-            stop_points.add_variable(variable.reference_address, variable)
+            stop_points.add_variable(variable.ref_addr, variable)
 
         for constraint in self.constraints:
             stop_points.add_constraint(constraint.constraint_address(), constraint)
@@ -181,7 +181,7 @@ class DangrAnalysis:
 
     def upper_bounded(self, expr_tree: ExpressionNode, states: list[angr.SimState]) -> bool:
         return all(
-            state.solver.max(expr) < 2**expr_tree.bit_size()-ALLIGNMENT_OFFSET
+            state.solver.max(expr) < 2**(expr_tree.size()*BYTE_SIZE)-ALLIGNMENT_OFFSET
             for expr, state in product(expr_tree.create_expressions(), states)
         )
 

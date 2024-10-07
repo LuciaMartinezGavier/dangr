@@ -18,12 +18,12 @@ Classes:
 from abc import abstractmethod, ABC
 from dataclasses import dataclass
 from functools import wraps
-from typing import override, ItemsView
+from typing import override, ItemsView, Final
 import angr
 import claripy
 
-from jasm_findings import CaptureInfo
-from dangr_types import Address, AngrExpr, BYTE_SIZE
+from dangrlib.jasm_findings import CaptureInfo
+from dangrlib.dangr_types import Address, AngrExpr, BYTE_SIZE
 
 
 class Variable(ABC):
@@ -46,8 +46,9 @@ class Variable(ABC):
             return method(self, *args, **kwargs)
         return wrapper
 
-    def __init__(self, reference_address: Address):
-        self.reference_address = reference_address
+    def __init__(self, project, ref_addr: Address):
+        self.project: Final = project
+        self.ref_addr: Final = ref_addr
         self.reference_states: list[angr.SimState] | None = None
 
     @abstractmethod
@@ -73,7 +74,7 @@ class Variable(ABC):
         """
 
     @ref_state_is_set
-    def dependencies(self) -> list['Variable']:
+    def dependencies(self, variable_factory) -> list['Variable']:
         """
         Calculates the dependencies of this variable across multiple symbolic states.
 
@@ -81,13 +82,12 @@ class Variable(ABC):
             list[Variable]: A list of variables that this variable depends on.
         """
         deps: set[Variable] = set()
-        variable_factory = VariableFactory()
 
         for ref_state in self.reference_states: # type: ignore[union-attr]
             state_variables: set[str] = getattr(self.angr_repr()[ref_state], 'variables', set())
 
             deps.update({
-                variable_factory.create_from_angr_name(var_name, ref_state.addr)
+                variable_factory.create_from_angr_name(var_name, self.ref_addr)
                 for var_name in state_variables
             })
 
@@ -122,21 +122,24 @@ class Variable(ABC):
             for state in self.reference_states # type: ignore[union-attr]
         )
 
-    @ref_state_is_set
-    def bit_size(self) -> 0:
-        return BYTE_SIZE*(self.reference_states[0].block().capstone.insns[0].operands[0].size)
+    @abstractmethod
+    def size(self) -> int:
+        """
+        Returns the size of the variable in bytes
+        """
+
 
 class Register(Variable):
     """
     A class representing a CPU register in symbolic execution.
 
     Attributes:
-        name (str): The name of the register (e.g., 'rax', 'rbx').
-        size (int): The size of the register (e.g., 64 bits for 'rax').
+        name (str): The name of the register (e.g., 'rax', 'ebx').
+        ref_addr (Address): The address where the register is used.
     """
-    def __init__(self, reg_name: str, reference_address: Address):
-        super().__init__(reference_address)
-        self.name = reg_name
+    def __init__(self, project, reg_name: str, ref_addr: Address):
+        super().__init__(project, ref_addr)
+        self.name: Final = reg_name
 
     @override
     def set_ref_state(self, states: list[angr.SimState]) -> None:
@@ -156,13 +159,23 @@ class Register(Variable):
         for state in self.reference_states: # type: ignore[union-attr]
             setattr(state.regs, self.name, value)
 
+    @override
+    def size(self) -> int:
+        return self.project.arch.get_register_by_name(self.name).size
+
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Register):
-            return self.name == other.name and self.reference_address == other.reference_address
+            return self.name == other.name and self.ref_addr == other.ref_addr
         return False
 
     def __hash__(self) -> int:
-        return hash((self.name, self.reference_address))
+        return hash((self.name, self.ref_addr))
+
+    def normalized_name(self) -> str:
+        """
+        Normalize the x86-64 register name to its 64-bit equivalent.
+        """
+        return self.project.arch.get_register_by_name(self.name).name
 
 class Memory(Variable):
     """
@@ -172,17 +185,17 @@ class Memory(Variable):
         addr (int): The memory address.
         size (int): The size of the memory region.
     """
-    def __init__(self, addr:int, size: int, reference_address: Address) -> None:
-        super().__init__(reference_address)
-        self.size = size
-        self.addr = addr
+    def __init__(self, project, addr: int, size: int, ref_addr: Address) -> None:
+        super().__init__(project, ref_addr)
+        self._size: Final = size
+        self.addr: Final = addr
 
     @override
     @Variable.ref_state_is_set
     def angr_repr(self) -> dict[angr.SimState, AngrExpr]:
         return {
-            state: state.memory.load(self.addr, self.size)
-            for state in self.reference_states # type: ignore[union-attr]
+            state: state.memory.load(self.addr, self.size())
+            for state in self.reference_states
         }
 
     @override
@@ -193,17 +206,20 @@ class Memory(Variable):
     @Variable.ref_state_is_set
     def set_value(self, value: int) -> None:
         for state in self.reference_states: # type: ignore[union-attr]
-            state.memory.store(self.addr, value, self.size)
+            state.memory.store(self.addr, value, self.size())
+
+    @override
+    def size(self) -> int:
+        return self._size
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Memory):
             return self.addr == other.addr and \
-                   self.size == other.size and \
-                   self.reference_address == other.reference_address
+                   self._size == other._size
         return False
 
     def __hash__(self) -> int:
-        return hash((self.addr, self.size, self.reference_address))
+        return hash((self.addr, self.size, self.ref_addr))
 
 
 class Literal(Variable):
@@ -213,15 +229,15 @@ class Literal(Variable):
     Attributes:
         value (int): The literal value.
     """
-    def __init__(self, value: int, reference_address: int) -> None:
-        super().__init__(reference_address)
-        self.value = value
+    def __init__(self, project, value: int, ref_addr: int) -> None:
+        super().__init__(project, ref_addr)
+        self.value: Final = value
 
     @override
     @Variable.ref_state_is_set
     def angr_repr(self) -> dict[angr.SimState, AngrExpr]:
         return {
-            state: claripy.BVV(self.value, self.bit_size())
+            state: claripy.BVV(self.value, self.size()*BYTE_SIZE)
             for state in self.reference_states # type: ignore[union-attr]
         }
 
@@ -232,6 +248,10 @@ class Literal(Variable):
     @override
     def set_value(self, value: int) -> None:
         raise ValueError("Can't set a value to a Literal")
+
+    @override
+    def size(self) -> int:
+        return self.project.factory.block(self.ref_addr).capstone.insns[0].insn.imm_size
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Literal):
@@ -254,20 +274,19 @@ class Deref(Variable):
     """
     def __init__(
         self,
-        reference_address: int,
         base: Register,
         idx: int = 0
     ) -> None:
 
-        super().__init__(reference_address)
-        self.base = base
-        self.idx = idx
+        super().__init__(base.project, base.ref_addr)
+        self.base: Final = base
+        self.idx: Final = idx
 
     @override
     @Variable.ref_state_is_set
     def angr_repr(self) -> dict[angr.SimState, AngrExpr]:
         return {
-            state: state.memory.load(self.base.angr_repr()[state], self.bit_size()/BYTE_SIZE)
+            state: state.memory.load(self.base.angr_repr()[state], int(self.size()))
             for state in self.reference_states # type: ignore[union-attr]
         }
 
@@ -280,7 +299,7 @@ class Deref(Variable):
     @Variable.ref_state_is_set
     def set_value(self, value: int) -> None:
         for state in self.reference_states: # type: ignore[union-attr]
-            state.memory.store(self.base.angr_repr()[state], value, self.bit_size()/BYTE_SIZE)
+            state.memory.store(self.base.angr_repr()[state], value, int(self.size()))
 
     @Variable.ref_state_is_set
     def evaluate_memory(self, state: angr.SimState) -> list[int]:
@@ -294,19 +313,22 @@ class Deref(Variable):
         return [
             state.solver.eval(
                 state.memory.load(self.base.angr_repr()[der_state],
-                self.bit_size()/BYTE_SIZE)
+                self.size())
             )
             for der_state in self.reference_states # type: ignore[union-attr]
         ]
 
+    @override
+    def size(self) -> int:
+        return self.project.factory.block(self.ref_addr).capstone.insns[0].insn.operands[0].size
+
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Deref):
-            return self.base == other.base and self.idx == other.idx\
-                   and self.reference_address == other.reference_address
+            return self.base == other.base and self.idx == other.idx
         return False
 
     def __hash__(self) -> int:
-        return hash((self.base, self.idx, self.reference_address))
+        return hash((self.base, self.idx))
 
 
 @dataclass
@@ -322,7 +344,6 @@ class VariableFactory:
     """
     A factory class for creating Variable objects (Register, Memory, or Literal).
     """
-
     REGISTER_MAP = {
         1: 'rdi',
         2: 'rsi',
@@ -332,15 +353,18 @@ class VariableFactory:
         6: 'r9',
     }
 
+    def __init__(self, project) -> None:
+        self.project: Final = project
+
     def create_from_capture(self, capture: CaptureInfo) -> Variable:
         """
         Creates a Variable from the structural match info.
         """
         match capture.captured:
             case int():
-                return Literal(capture.captured, capture.address)
+                return Literal(self.project, capture.captured, capture.address)
             case str():
-                return Register(capture.captured, capture.address)
+                return Register(self.project, capture.captured, capture.address)
             case _:
                 raise ValueError(f"Unsupported capture type: {type(capture.captured)}")
 
@@ -362,9 +386,9 @@ class VariableFactory:
         if register_name is None:
             raise ValueError(f"No register for argument index {argument.idx}")
 
-        return Register(register_name, argument.call_address)
+        return Register(self.project, register_name, argument.call_address)
 
-    def create_from_angr_name(self, angr_name: str, reference_address: Address) -> Variable:
+    def create_from_angr_name(self, angr_name: str, ref_addr: Address) -> Variable:
         """
         Create the Register or Memory object by parsing the name that angr provides
         when obtaining the variables of the symbolic formula.
@@ -379,11 +403,11 @@ class VariableFactory:
 
         if angr_name.startswith("reg"):
             name = angr_name.split("_")[1]
-            return Register(name, reference_address)
+            return Register(self.project, name, ref_addr)
 
         if angr_name.startswith("mem"):
             _, addr_str, _, size = angr_name.split("_")
-            return Memory(int(addr_str, 16), int(int(size)/8), reference_address)
+            return Memory(self.project, int(addr_str, 16), int(int(size)/8), ref_addr)
 
         raise ValueError("Unknown variable name")
 

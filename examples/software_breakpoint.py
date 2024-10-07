@@ -19,7 +19,7 @@ def detect(binary_path: str, jasm_pattern: str):
 
         y = vf.create_from_capture(struc_find.captured_regs['y'])
         z = vf.create_from_capture(struc_find.captured_regs['z'])
-        dx = Deref(ptr.reference_address, ptr)
+        dx = Deref(ptr)
         dangr.add_variables([y,z,dx])
 
         if not (dangr.depends(dx, y) or dangr.depends(dx, z)):

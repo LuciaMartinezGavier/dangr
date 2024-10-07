@@ -1,6 +1,6 @@
-from jasm_findings import structural_filter
-from dangr_analysis import DangrAnalysis
-from expression import SumNode, MultNode, VarNode
+from dangrlib.jasm_findings import structural_filter
+from dangrlib.dangr_analysis import DangrAnalysis
+from dangrlib.expression import SumNode, MultNode, VarNode
 
 def detect(binary_path: str, jasm_pattern: str):
     s_findings = structural_filter(binary_path, jasm_pattern)
@@ -8,7 +8,6 @@ def detect(binary_path: str, jasm_pattern: str):
     dangr = DangrAnalysis(binary_path)
     print(s_findings)
     for struc_find in s_findings:
-        print("HI")
         dangr.set_finding(struc_find)
         vf = dangr.get_variable_factory()
 

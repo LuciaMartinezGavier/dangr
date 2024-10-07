@@ -1,8 +1,8 @@
 from typing import Final
 import angr
-from variables import ConcreteState, Variable, Register
-from simulation_manager import BackwardSimulation, HookSimulation
-from dangr_types import Address
+from dangrlib.variables import ConcreteState, Variable, Register
+from dangrlib.simulation_manager import BackwardSimulation, HookSimulation
+from dangrlib.dangr_types import Address
 
 class ArgumentsAnalyzer:
     """
@@ -41,7 +41,7 @@ class ArgumentsAnalyzer:
         )
 
         h_simulator.simulate()
-        return [Register(name, addr) for name, addr in self.first_read_addrs.items()]
+        return [Register(self.project, name, addr) for name, addr in self.first_read_addrs.items()]
 
 
     def _record_reg_read(self, state: angr.SimState) -> None:
