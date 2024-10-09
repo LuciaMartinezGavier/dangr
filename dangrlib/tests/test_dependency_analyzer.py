@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, Callable
 import pytest
 import angr
 from tests.compilation_utils import BinaryBasedTestCase, compile_assembly
@@ -18,11 +18,12 @@ class DependencyTestCase(BinaryBasedTestCase):
     call_depth: call_depth (optional)
     """
     func_addr: int
-    source: int
-    target: int
+    source: Callable[angr.Project, int]
+    target: Callable[angr.Project, int]
     expected: bool
     call_depth: int | None = None
 
+DEP_ANALYZER_DIR = 'dependency_analyzer'
 DEP_ANALYZER_TESTS: Final = [
     DependencyTestCase(
         asm_filename="mini.s",
@@ -142,7 +143,7 @@ DEP_ANALYZER_TESTS: Final = [
 
 
 @pytest.mark.parametrize("test_case", DEP_ANALYZER_TESTS)
-@compile_assembly
+@compile_assembly(DEP_ANALYZER_DIR)
 def test_check_dependency(test_case):
     """Test checking a dependency between variables."""
     project = angr.Project(test_case.binary, auto_load_libs=False)

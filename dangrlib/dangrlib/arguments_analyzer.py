@@ -28,7 +28,7 @@ class ArgumentsAnalyzer:
         self.project.analyses.VariableRecoveryFast(func)
         cca = self.project.analyses.CallingConvention(func, self.cfg, analyze_callsites=True)
 
-        self.first_read_addrs = {reg.reg_name: None for reg in cca.cc.arg_locs(cca.prototype)}
+        self.first_read_addrs = {reg.check_offset(self.project.arch): None for reg in cca.cc.arg_locs(cca.prototype)}
 
         h_simulator = HookSimulation(
             project=self.project,
@@ -36,21 +36,23 @@ class ArgumentsAnalyzer:
             event='reg_read',
             action=self._record_reg_read,
             context=self.first_read_addrs,
-            when=angr.BP_AFTER,
+            when=angr.BP_BEFORE,
             stop=lambda ctx: all(ctx.values())
         )
 
         h_simulator.simulate()
-        return [Register(self.project, name, addr) for name, addr in self.first_read_addrs.items()]
+        return [
+            Register(self.project, self.project.arch.register_size_names[offset, size], addr)
+            for offset, (size, addr) in self.first_read_addrs.items()]
 
 
     def _record_reg_read(self, state: angr.SimState) -> None:
         """Record the instruction address of the first read of the register."""
+        addr = state.inspect.instruction
         offset = state.solver.eval(state.inspect.reg_read_offset)
-        reg_name = self.project.arch.translate_register_name(offset)
-
-        if reg_name in self.first_read_addrs and self.first_read_addrs[reg_name] is None:
-            self.first_read_addrs[reg_name] = state.addr
+        size = state.block(addr).capstone.insns[0].insn.operands[0].size
+        if offset in self.first_read_addrs and self.first_read_addrs[offset] is None:
+            self.first_read_addrs[offset] = (size, addr)
 
 
     def solve_arguments(self, fn_addr: Address, args: list[Variable]) -> list[ConcreteState]:

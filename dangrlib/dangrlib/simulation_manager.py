@@ -116,7 +116,7 @@ class StepSimulation(Simulator):
 
 @dataclass
 class RecursiveCtx:
-    current_depht: int
+    current_depth: int
     backup_state: SimState | None
     path: list[CFGNode]
 
@@ -124,17 +124,21 @@ class BackwardSimulation(Simulator):
     """
     Simualte backwards until variables are concrete
     """
-    def __init__(self, project, target, cfg, variables: list[Variable], max_depth: int | None) -> None:
+    def __init__(
+        self, project, target, cfg, variables: list[Variable],
+        max_depth: int | None = None
+    ) -> None:
+
         super().__init__(project)
         self.target = target
         self.cfg = cfg
         self.variables = variables
         self.states_found: list[SimState] = []
-        self.max_depth: Final = max_depth if max_depth else 2
+        self.max_depth: Final = max_depth or 1
 
     @override
     def simulate(self) -> list[SimState]:
-        target_node = self.cfg.get_any_node(self.target)
+        target_node = self.cfg.model.get_any_node(self.target)
         rec_ctx = RecursiveCtx(0, None, [target_node])
         self._rec_simulate(target_node, rec_ctx)
         return self.states_found
@@ -154,8 +158,11 @@ class BackwardSimulation(Simulator):
         initial_node = rec_ctx.path[-1]
         state = self._simulate_slice(initial_node.addr, target_node, rec_ctx.path)
 
-        if not state or rec_ctx.current_depht >= self.max_depth:
+        if not state:
             self.states_found.append(rec_ctx.backup_state)
+            return
+        if rec_ctx.current_depth >= self.max_depth:
+            self.states_found.append(state)
             return
 
         for var in self.variables:
@@ -165,12 +172,9 @@ class BackwardSimulation(Simulator):
             self.states_found.append(state)
             return
 
-        rec_ctx.backup_state = state
-        for pred in [p for p in self.cfg.get_predecessors(initial_node) if p not in rec_ctx.path]:
-            rec_ctx.current_depht = rec_ctx.current_depht + 1
-            rec_ctx.path = rec_ctx.path + [pred]
-            self._rec_simulate(target_node, rec_ctx)
-
+        for pred in [p for p in self.cfg.model.get_predecessors(initial_node)]:
+            new_rec_ctx = RecursiveCtx(rec_ctx.current_depth + 1, state, rec_ctx.path + [pred])
+            self._rec_simulate(target_node, new_rec_ctx)
 
     def _simulate_slice(
         self,
@@ -181,12 +185,12 @@ class BackwardSimulation(Simulator):
 
         initial = self._initialize_state(start)
         simgr = self.project.factory.simulation_manager(initial)
-        state_found: SimState | None = None
+        state_found = self._get_finding(simgr, target_node.addr)
 
         while simgr.active and not state_found:
-            state_found = self._get_finding(simgr, target_node.addr)
             self._remove_states(simgr.active, pred)
             simgr.step()
+            state_found = self._get_finding(simgr, target_node.addr)
 
         return state_found
 
@@ -202,11 +206,7 @@ class BackwardSimulation(Simulator):
         already_visited = state.addr in state.history.bbl_addrs
         is_external_block =  state.addr >= EXTERNAL_ADDR_SPACE_BASE
         is_in_slice = state.addr in [p.addr for p in pred]
-        is_start_of_func = state.block().capstone.insns and \
-                           state.block().capstone.insns[0].mnemonic == ENDBR64_MNEMONIC
-
-        return already_visited or\
-               (not is_external_block and not is_in_slice and not is_start_of_func)
+        return not is_in_slice or is_external_block or already_visited
 
 class HookSimulation(Simulator):
     """

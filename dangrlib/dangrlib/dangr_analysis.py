@@ -1,4 +1,4 @@
-from typing import Final
+from typing import Final,ItemsView
 from collections import namedtuple
 from functools import wraps
 import angr
@@ -202,20 +202,20 @@ class StopPoints(dict):
         return wrapper
 
     @ensure_address
-    def add_variable(self, address: Address, variable: Variable):
+    def add_variable(self, address: Address, variable: Variable) -> None:
         self[address].variables.append(variable)
 
     @ensure_address
-    def add_constraint(self, address: Address, constraint: ExpressionNode):
+    def add_constraint(self, address: Address, constraint: ExpressionNode) -> None:
         self[address].constraints.append(constraint)
 
-    def add_address(self, address: Address):
+    def add_address(self, address: Address) -> None:
         self[address] = StopPointGroup([], [])
 
-    def sorted(self):
+    def sorted(self) -> ItemsView[Address, Variable | ExpressionNode]:
         return sorted(self.items())
 
-    def get_items(self):
+    def get_items(self) -> ItemsView[Address, Variable | ExpressionNode]:
         return self.items()
 
     def last_address(self) -> Address | None:

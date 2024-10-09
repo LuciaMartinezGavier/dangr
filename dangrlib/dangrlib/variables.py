@@ -165,17 +165,22 @@ class Register(Variable):
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Register):
-            return self.name == other.name and self.ref_addr == other.ref_addr
+            return self.name == other.name and self.ref_addr == other.ref_addr\
+                   and self.project == other.project
         return False
 
     def __hash__(self) -> int:
-        return hash((self.name, self.ref_addr))
+        return hash((self.project, self.name, self.ref_addr))
 
     def normalized_name(self) -> str:
         """
         Normalize the x86-64 register name to its 64-bit equivalent.
         """
         return self.project.arch.get_register_by_name(self.name).name
+
+    def __repr__(self) -> str:
+        return ('<(x) ' if self.reference_states else '<') + f'Register {self.name} in {hex(self.ref_addr)}'
+
 
 class Memory(Variable):
     """
@@ -215,11 +220,12 @@ class Memory(Variable):
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Memory):
             return self.addr == other.addr and \
-                   self._size == other._size
+                   self._size == other._size and\
+                   self.project == other.project
         return False
 
     def __hash__(self) -> int:
-        return hash((self.addr, self.size, self.ref_addr))
+        return hash((self.project, self.addr, self.size, self.ref_addr))
 
 
 class Literal(Variable):
@@ -255,11 +261,12 @@ class Literal(Variable):
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Literal):
-            return self.value == other.value
+            return self.value == other.value\
+                   and self.project == other.project
         return False
 
     def __hash__(self) -> int:
-        return hash((self.value))
+        return hash((self.project, self.value))
 
 class Deref(Variable):
     """
@@ -412,15 +419,11 @@ class VariableFactory:
         raise ValueError("Unknown variable name")
 
 
-class ConcreteState:
+class ConcreteState(dict):
     """
     A class representing a concrete state in symbolic execution,
     mapping variables to concrete values.
     """
-
-    def __init__(self) -> None:
-        self.concrete_state: dict[Variable, int] = {}
-
     def add_value(self, variable: Variable, value: int) -> None:
         """
         Adds or updates the concrete value associated with a variable.
@@ -429,7 +432,7 @@ class ConcreteState:
             variable (Variable): The variable to associate with a concrete value.
             value (int): The concrete value to assign to the variable.
         """
-        self.concrete_state[variable] = value
+        self[variable] = value
 
     def get_items(self) -> ItemsView[Variable, int]:
         """
@@ -439,7 +442,7 @@ class ConcreteState:
             ItemsView[Variable, int]: A view of all items (variable-value pairs) in the
             concrete state.
         """
-        return self.concrete_state.items()
+        return self.items()
 
     def get_value(self, variable: Variable) -> int:
         """
@@ -451,4 +454,4 @@ class ConcreteState:
         Returns:
             int: The concrete value associated with the variable.
         """
-        return self.concrete_state[variable]
+        return self[variable]
