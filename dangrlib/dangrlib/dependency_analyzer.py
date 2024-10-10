@@ -7,7 +7,7 @@ import angr
 
 from dangrlib.dangr_types import Address
 from dangrlib.variables import Variable, Literal, Register, Memory, Deref, VariableFactory
-from dangrlib.simulation_manager import ForwardSimulation
+from dangrlib.simulator import ForwardSimulation
 
 class DependencyAnalyzer:
     """

@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import override, Final
+from typing import override, Final, Callable
 from dataclasses import dataclass
-from angr import SimState, SimulationManager, BP_AFTER
 from copy import deepcopy
+from angr import SimState, SimulationManager, BP_AFTER
 
 from dangrlib.variables import ConcreteState, Variable
-from dangrlib.dangr_types import Address, CFGNode, Context
+from dangrlib.dangr_types import Address, CFGNode
 
 EXTERNAL_ADDR_SPACE_BASE: Final = 0x500000
 ENDBR64_MNEMONIC: Final = 'endbr64'
@@ -41,7 +41,7 @@ class Simulator(ABC):
 
         return state
 
-    def set_inital_values(self, initial_values: ConcreteState) -> None:
+    def set_initial_values(self, initial_values: ConcreteState) -> None:
         """
         Set values for the initial state of the simulation
         """
@@ -217,38 +217,26 @@ class HookSimulation(Simulator):
         project,
         init_addr: Address,
         event: str,
-        action,
-        context: Context,
+        action: Callable[SimState, None],
         when,
-        stop
+        stop: Callable[list[SimState], bool],
+        condition: Callable[SimState, bool] | None = None
     ) -> None:
 
         super().__init__(project)
         self.init_addr = init_addr
         self.event = event
         self.action = action
-        self.context = context
         self.when = when
         self.stop = stop
-
+        self.condition = condition
     @override
     def simulate(self) -> list[SimState]:
-        """
-        Excecutes simbolically from `self.init_addr` until reaching the target.
-
-        Arguments:
-            target (Address): the target to find
-            concrete_state (ConcreteState): the values to initialize the simulation
-
-        Returns
-            list[SimState]: the list of states on which the target was found
-
-        """
         initial = self._initialize_state(self.init_addr)
         simulation = self.project.factory.simulation_manager(initial)
-        initial.inspect.b(self.event, action=self.action, when=self.when)
+        initial.inspect.b(self.event, action=self.action, when=self.when, condition=self.condition)
 
-        while simulation.active and not self.stop(self.context):
+        while simulation.active and not self.stop(simulation.active):
             simulation.step()
 
         return simulation.active

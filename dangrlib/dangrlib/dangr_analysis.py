@@ -8,7 +8,7 @@ from dangrlib.jasm_findings import StructuralFinding
 from dangrlib.dangr_types import Address, Path, ALLIGNMENT_OFFSET, BYTE_SIZE
 from dangrlib.variables import VariableFactory, Variable, ConcreteState
 from dangrlib.expression import ExpressionNode
-from dangrlib.simulation_manager import Simulator, StepSimulation
+from dangrlib.simulator import Simulator, StepSimulation
 from dangrlib.arguments_analyzer import ArgumentsAnalyzer
 from dangrlib.dependency_analyzer import DependencyAnalyzer
 
@@ -129,7 +129,7 @@ class DangrAnalysis:
                 found_states.extend(self.simulator.simulate())
             else:
                 for init_state in init_states:
-                    self.simulator.set_inital_values(init_state)
+                    self.simulator.set_initial_values(init_state)
                     found_states.extend(self.simulator.simulate())
 
             self._set_states_to_vars(action_elem.variables, found_states)

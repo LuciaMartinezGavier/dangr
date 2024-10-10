@@ -1,7 +1,7 @@
 from typing import Final
 import angr
 from dangrlib.variables import ConcreteState, Variable, Register
-from dangrlib.simulation_manager import BackwardSimulation, HookSimulation
+from dangrlib.simulator import BackwardSimulation, HookSimulation
 from dangrlib.dangr_types import Address
 
 class ArgumentsAnalyzer:
@@ -35,9 +35,8 @@ class ArgumentsAnalyzer:
             init_addr=fn_addr,
             event='reg_read',
             action=self._record_reg_read,
-            context=self.first_read_addrs,
             when=angr.BP_BEFORE,
-            stop=lambda ctx: all(ctx.values())
+            stop=lambda sts: all(self.first_read_addrs.values())
         )
 
         h_simulator.simulate()
