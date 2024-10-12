@@ -152,8 +152,8 @@ class DangrAnalysis:
                     state.add_constraints(expr)
 
 
-    def _create_stop_points(self, target) -> 'StopPoints':
-        stop_points = StopPoints()
+    def _create_stop_points(self, target) -> 'Checkpoints':
+        stop_points = Checkpoints()
 
         for variable in self.variables:
             stop_points.add_variable(variable.ref_addr, variable)
@@ -184,9 +184,9 @@ class DangrAnalysis:
             for expr, state in product(expr_tree.create_expressions(), states)
         )
 
-StopPointGroup = namedtuple('StopPointGroup', ['variables', 'constraints'])
+CheckpointGroup = namedtuple('CheckpointGroup', ['variables', 'constraints'])
 
-class StopPoints(dict):
+class Checkpoints(dict):
 
     @staticmethod
     def ensure_address(func):
@@ -209,13 +209,10 @@ class StopPoints(dict):
         self[address].constraints.append(constraint)
 
     def add_address(self, address: Address) -> None:
-        self[address] = StopPointGroup([], [])
+        self[address] = CheckpointGroup([], [])
 
     def sorted(self) -> ItemsView[Address, Variable | ExpressionNode]:
         return sorted(self.items())
-
-    def get_items(self) -> ItemsView[Address, Variable | ExpressionNode]:
-        return self.items()
 
     def last_address(self) -> Address | None:
         if not self:
