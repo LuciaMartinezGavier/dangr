@@ -5,7 +5,7 @@ import angr
 from itertools import product
 
 from dangrlib.jasm_findings import StructuralFinding
-from dangrlib.dangr_types import Address, Path, ALLIGNMENT_OFFSET, BYTE_SIZE
+from dangrlib.dangr_types import Address, Path, BYTE_SIZE
 from dangrlib.variables import Variable
 from dangrlib.variable_factory import VariableFactory
 from dangrlib.expression import ExpressionNode
@@ -119,8 +119,8 @@ class DangrAnalysis:
         """
         Symbolic execute the current function until the target is found
         """
-        stop_points = self._create_stop_points(target)
-        for addr, action_elem in stop_points:
+        checkpoints = self._create_checkpoints(target)
+        for addr, action_elem in checkpoints:
 
             found_states: list[angr.SimState] = []
             self.simulator.set_step_target(target=addr)
@@ -152,19 +152,19 @@ class DangrAnalysis:
                     state.add_constraints(expr)
 
 
-    def _create_stop_points(self, target) -> 'Checkpoints':
-        stop_points = Checkpoints()
+    def _create_checkpoints(self, target) -> 'Checkpoints':
+        checkpoints = Checkpoints()
 
         for variable in self.variables:
-            stop_points.add_variable(variable.ref_addr, variable)
+            checkpoints.add_variable(variable.ref_addr, variable)
 
         for constraint in self.constraints:
-            stop_points.add_constraint(constraint.expression_address(), constraint)
+            checkpoints.add_constraint(constraint.expression_address(), constraint)
 
-        if not stop_points.last_address() or stop_points.last_address() < target:
-            stop_points.add_address(target)
+        if not checkpoints.last_address() or checkpoints.last_address() < target:
+            checkpoints.add_address(target)
 
-        return stop_points.sorted()
+        return checkpoints.sorted()
 
     def add_constraint(self, constraint: ExpressionNode) -> None:
         """
@@ -178,9 +178,12 @@ class DangrAnalysis:
         """
         return self.dependency_analyzer.check_dependency(source, target)
 
-    def upper_bounded(self, expr_tree: ExpressionNode, states: list[angr.SimState]) -> bool:
+    def upper_bounded(
+        self, expr_tree: ExpressionNode,
+        states: list[angr.SimState], offset: int = 0
+    ) -> bool:
         return all(
-            state.solver.max(expr) < 2**(expr_tree.size()*BYTE_SIZE)-ALLIGNMENT_OFFSET
+            state.solver.max(expr) < 2**(expr_tree.size() * BYTE_SIZE) - offset
             for expr, state in product(expr_tree.create_expressions(), states)
         )
 

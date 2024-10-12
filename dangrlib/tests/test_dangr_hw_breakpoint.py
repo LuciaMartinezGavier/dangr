@@ -1,14 +1,12 @@
-import pytest
-from dataclasses import dataclass
 from typing import Callable
-from itertools import chain
+from dataclasses import dataclass
+import pytest
 import angr
 from tests.compilation_utils import BinaryBasedTestCase, compile_assembly,fullpath
 
 from dangrlib.dangr_analysis import DangrAnalysis
-from dangrlib.jasm_findings import CaptureInfo, StructuralFinding
-from dangrlib.variables import Deref, Variable, Register, Literal
-from dangrlib.expression import EqualNode, VarNode
+from dangrlib.jasm_findings import StructuralFinding
+from dangrlib.variables import Variable, Register
 from dangrlib.dangr_types import Argument
 from dangrlib.simulator import ConcreteState
 
