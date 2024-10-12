@@ -4,7 +4,9 @@ import pytest
 import angr
 from tests.compilation_utils import BinaryBasedTestCase, compile_assembly
 from dangrlib.dependency_analyzer import DependencyAnalyzer
-from dangrlib.variables import Register, Memory, Deref, Literal, VariableFactory
+from dangrlib.variables import Variable, Register, Memory, Deref, Literal
+from dangrlib.variable_factory import VariableFactory
+from dangrlib.dangr_types import Address
 
 @dataclass
 class DependencyTestCase(BinaryBasedTestCase):
@@ -17,9 +19,9 @@ class DependencyTestCase(BinaryBasedTestCase):
     expected: Expected result (True if dependency exists)
     call_depth: call_depth (optional)
     """
-    func_addr: int
-    source: Callable[angr.Project, int]
-    target: Callable[angr.Project, int]
+    func_addr: Address
+    source: Callable[angr.Project, Variable]
+    target: Callable[angr.Project, Variable]
     expected: bool
     call_depth: int | None = None
 
@@ -156,8 +158,7 @@ def test_check_dependency(test_case):
 
     result = analyzer.check_dependency(
         test_case.source(project),
-        test_case.target(project),
-        test_case.func_addr
+        test_case.target(project)
     )
 
     assert result == test_case.expected

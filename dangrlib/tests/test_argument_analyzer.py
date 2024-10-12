@@ -5,7 +5,8 @@ import angr
 from tests.compilation_utils import compile_assembly, BinaryBasedTestCase
 from dangrlib.arguments_analyzer import ArgumentsAnalyzer
 from dangrlib.dangr_types import Address
-from dangrlib.variables import ConcreteState, Register, Variable
+from dangrlib.variables import Register, Variable
+from dangrlib.simulator import ConcreteState
 
 @dataclass
 class ArgumentsTestCase(BinaryBasedTestCase):
@@ -25,7 +26,7 @@ ARG_ANALYZER_TESTS: Final = [
         asm_filename='not_optimized.s',
         fn_addr=0x40_0000,
         expected_args=lambda proj: [],
-        expected_values=lambda proj: [ConcreteState()],
+        expected_values=lambda proj: [{}],
         max_depth=1,
     ),
     ArgumentsTestCase(
@@ -36,13 +37,13 @@ ARG_ANALYZER_TESTS: Final = [
             Register(proj, 'esi', 0x40_0012)
         ],
         expected_values=lambda proj: [
-            ConcreteState({
+            {
                 Register(proj, 'edi', 0x40_000f): 1,
                 Register(proj, 'esi', 0x40_0012): 3,
-            }),
-            ConcreteState({
+            },
+            {
                 Register(proj, 'esi', 0x40_0012): 3
-            })
+            }
         ],
         max_depth=1,
     ),
@@ -54,14 +55,14 @@ ARG_ANALYZER_TESTS: Final = [
             Register(proj, 'esi', 0x40_0012)
         ],
         expected_values=lambda proj: [
-            ConcreteState({
+            {
                 Register(proj, 'edi', 0x40_000f): 1,
                 Register(proj, 'esi', 0x40_0012): 3,
-            }),
-            ConcreteState({
+            },
+            {
                 Register(proj, 'edi', 0x40_000f): 42,
                 Register(proj, 'esi', 0x40_0012): 3,
-            }),
+            },
         ],
         max_depth=2,
     ),
@@ -73,10 +74,10 @@ ARG_ANALYZER_TESTS: Final = [
             Register(proj, 'rsi', 0x40_005e),
             Register(proj, 'edx', 0x40_0062),
         ],
-        expected_values=lambda proj: [ConcreteState({
+        expected_values=lambda proj: [{
             Register(proj, 'rsi', 0x40_005e): 1,
             Register(proj, 'edx', 0x40_0062): 0,
-        })],
+        }],
         max_depth=2,
     ),
     ArgumentsTestCase(
@@ -86,10 +87,10 @@ ARG_ANALYZER_TESTS: Final = [
             Register(proj, 'edi', 0x40_007f),
             Register(proj, 'esi', 0x40_0082),
         ],
-        expected_values=lambda proj: [ConcreteState({
+        expected_values=lambda proj: [{
             Register(proj, 'edi', 0x40_007f): 6,
             Register(proj, 'esi', 0x40_0082): 7,
-        })],
+        }],
         max_depth=1,
     ),
     ArgumentsTestCase(
@@ -99,14 +100,8 @@ ARG_ANALYZER_TESTS: Final = [
             Register(proj, 'edi', 0x40_0000),
         ],
         expected_values=lambda proj: [
-            ConcreteState({
-                Register(proj, 'edi', 0x40_0000): 148504,
-            }),
-            ConcreteState({}),
-            ConcreteState({}),
-            ConcreteState({
-                Register(proj, 'edi', 0x40_0000): 3,
-            })
+            { Register(proj, 'edi', 0x40_0000): 148504 }, {}, {},
+            { Register(proj, 'edi', 0x40_0000): 3 }
         ],
         max_depth=5,
     ),

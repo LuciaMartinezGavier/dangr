@@ -40,14 +40,16 @@ class VarNode(ExpressionNode):
     def size(self) -> int:
         return self.variable.size()
 
+    def __repr__(self) -> None:
+        return f'VarNode({self.variable!r})'
+
 class BinaryOpNode(ExpressionNode):
     def __init__(self, lh: ExpressionNode, rh: ExpressionNode):
+        if lh.size() != rh.size():
+            raise ValueError("Mismatch of expression sizes")
+
         self.lh = lh
         self.rh = rh
-
-    @abstractmethod
-    def create_expressions(self) -> list[AngrExpr]:
-        pass
 
     @override
     def expression_address(self) -> Address:
@@ -55,21 +57,18 @@ class BinaryOpNode(ExpressionNode):
 
     @override
     def size(self) -> int:
-        size = self.lh.size()
-
-        if size != self.rh.size():
-            raise ValueError("Mismatch of expression sizes")
-
-        return size
+        return self.lh.size()
 
 class EqualNode(BinaryOpNode):
     @override
     def create_expressions(self) -> list[AngrExpr]:
         return [
-            lh == rh for lh, rh in 
+            lh == rh for lh, rh in
             product(self.lh.create_expressions(), self.rh.create_expressions())
         ]
 
+    def __repr__(self) -> None:
+        return f'{self.lh!r} == {self.rh!r}'
 
 class SumNode(BinaryOpNode):
     @override
@@ -79,6 +78,9 @@ class SumNode(BinaryOpNode):
             product(self.lh.create_expressions(), self.rh.create_expressions())
         ]
 
+    def __repr__(self) -> None:
+        return f'{self.lh!r} + {self.rh!r}'
+
 class MultNode(BinaryOpNode):
     @override
     def create_expressions(self) -> list[AngrExpr]:
@@ -86,3 +88,6 @@ class MultNode(BinaryOpNode):
             lh * rh for lh, rh in
             product(self.lh.create_expressions(), self.rh.create_expressions())
         ]
+
+    def __repr__(self) -> None:
+        return f'{self.lh!r} + {self.rh!r}'

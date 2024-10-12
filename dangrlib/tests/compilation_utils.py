@@ -10,11 +10,11 @@ ASSEMBLY_DIR: Final = "test_files"
 
 @dataclass(kw_only=True)
 class BinaryBasedTestCase:
-    asm_filename: str             # Path to the assembly file being tested
-    binary: str | None = None     # Path to the binary (automatically generated)
+    asm_filename: str | None = None # Path to the assembly file being tested
+    binary: str | None = None       # Path to the binary (automatically generated)
 
 
-def _fullpath(directory, filename):
+def fullpath(directory, filename):
     return os.path.join(ASSEMBLY_DIR, directory, filename)
 
 def compile_assembly(directory):
@@ -23,7 +23,7 @@ def compile_assembly(directory):
         @wraps(func)
         def wrapper(test_case: BinaryBasedTestCase):
             if test_case.binary is None:
-                asm_filepath = _fullpath(directory, test_case.asm_filename)
+                asm_filepath = fullpath(directory, test_case.asm_filename)
                 test_case.binary = asm_filepath.replace(".s", ".o")
                 subprocess.run(["as", "--64", "-o", test_case.binary, asm_filepath], check=True)
 

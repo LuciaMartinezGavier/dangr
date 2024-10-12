@@ -1,8 +1,9 @@
 from typing import Final
 import angr
-from dangrlib.variables import ConcreteState, Variable, Register
-from dangrlib.simulator import BackwardSimulation, HookSimulation
+from dangrlib.variables import Variable, Register
+from dangrlib.simulator import BackwardSimulation, HookSimulation, ConcreteState
 from dangrlib.dangr_types import Address
+
 
 class ArgumentsAnalyzer:
     """
@@ -27,8 +28,9 @@ class ArgumentsAnalyzer:
         func = self.cfg.functions.get(fn_addr)
         self.project.analyses.VariableRecoveryFast(func)
         cca = self.project.analyses.CallingConvention(func, self.cfg, analyze_callsites=True)
-
-        self.first_read_addrs = {reg.check_offset(self.project.arch): None for reg in cca.cc.arg_locs(cca.prototype)}
+        self.first_read_addrs = {
+            reg.check_offset(self.project.arch): None for reg in cca.cc.arg_locs(cca.prototype)
+        }
 
         h_simulator = HookSimulation(
             project=self.project,
@@ -40,6 +42,7 @@ class ArgumentsAnalyzer:
         )
 
         h_simulator.simulate()
+
         return [
             Register(self.project, self.project.arch.register_size_names[offset, size], addr)
             for offset, (size, addr) in self.first_read_addrs.items()]
@@ -49,8 +52,8 @@ class ArgumentsAnalyzer:
         """Record the instruction address of the first read of the register."""
         addr = state.inspect.instruction
         offset = state.solver.eval(state.inspect.reg_read_offset)
-        size = state.block(addr).capstone.insns[0].insn.operands[0].size
         if offset in self.first_read_addrs and self.first_read_addrs[offset] is None:
+            size = state.block(addr).capstone.insns[0].insn.operands[0].size
             self.first_read_addrs[offset] = (size, addr)
 
 
@@ -68,7 +71,7 @@ class ArgumentsAnalyzer:
             to that function
         """
         if not args:
-            return [ConcreteState()]
+            return [{}]
 
         simulator = BackwardSimulation(
             project=self.project,
@@ -82,9 +85,10 @@ class ArgumentsAnalyzer:
         return [self._get_args_values(args, state) for state in found_states]
 
     def _get_args_values(self, args: list[Variable], state: angr.SimState) -> ConcreteState:
-        concrete_state = ConcreteState()
+        concrete_state = {}
         for arg in args:
-            arg.set_ref_state([state])
+            arg.set_ref_states([state])
+
             if arg.is_concrete():
-                concrete_state.add_value(arg, value=arg.evaluate()[state])
+                concrete_state[arg] = arg.evaluate()[state]
         return concrete_state

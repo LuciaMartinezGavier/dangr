@@ -4,8 +4,10 @@ from dataclasses import dataclass
 from copy import deepcopy
 from angr import SimState, SimulationManager, BP_AFTER
 
-from dangrlib.variables import ConcreteState, Variable
+from dangrlib.variables import Variable
 from dangrlib.dangr_types import Address, CFGNode
+
+ConcreteState = dict['Variable', int]
 
 EXTERNAL_ADDR_SPACE_BASE: Final = 0x500000
 ENDBR64_MNEMONIC: Final = 'endbr64'
@@ -35,8 +37,8 @@ class Simulator(ABC):
         if self.initial_values is None:
             return state
 
-        for var, value in self.initial_values.get_items():
-            var.set_ref_state([state])
+        for var, value in self.initial_values.items():
+            var.set_ref_states([state])
             var.set_value(value)
 
         return state
@@ -157,18 +159,15 @@ class BackwardSimulation(Simulator):
         """
         initial_node = rec_ctx.path[-1]
         state = self._simulate_slice(initial_node.addr, target_node, rec_ctx.path)
-
         if not state:
             self.states_found.append(rec_ctx.backup_state)
             return
-        if rec_ctx.current_depth >= self.max_depth:
-            self.states_found.append(state)
-            return
 
         for var in self.variables:
-            var.set_ref_state([state])
+            var.set_ref_states([state])
 
-        if all(var.is_concrete() for var in self.variables):
+        if all(var.is_concrete() for var in self.variables) or\
+           rec_ctx.current_depth >= self.max_depth:
             self.states_found.append(state)
             return
 

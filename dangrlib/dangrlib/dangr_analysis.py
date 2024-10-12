@@ -6,9 +6,10 @@ from itertools import product
 
 from dangrlib.jasm_findings import StructuralFinding
 from dangrlib.dangr_types import Address, Path, ALLIGNMENT_OFFSET, BYTE_SIZE
-from dangrlib.variables import VariableFactory, Variable, ConcreteState
+from dangrlib.variables import Variable
+from dangrlib.variable_factory import VariableFactory
 from dangrlib.expression import ExpressionNode
-from dangrlib.simulator import Simulator, StepSimulation
+from dangrlib.simulator import Simulator, StepSimulation, ConcreteState
 from dangrlib.arguments_analyzer import ArgumentsAnalyzer
 from dangrlib.dependency_analyzer import DependencyAnalyzer
 
@@ -22,7 +23,6 @@ class DangrAnalysis:
         Here we set all the attributes that are independent from the structural finding
         """
         # general config
-        self.max_depth: Final = max_depth
         self.project: Final = angr.Project(binary_path, load_options={"auto_load_libs": False})
         self.cfg: Final = self.project.analyses.CFGFast()
 
@@ -30,7 +30,7 @@ class DangrAnalysis:
         self.variable_factory = VariableFactory(self.project)
         self.dependency_analyzer = DependencyAnalyzer(self.project, self.variable_factory)
         self.simulator: Simulator | None = None
-        self.arguments_analyzer = ArgumentsAnalyzer(self.project, self.cfg)
+        self.arguments_analyzer = ArgumentsAnalyzer(self.project, self.cfg, max_depth)
 
         # structural finding related
         self.struct_f: StructuralFinding | None = None
@@ -125,13 +125,12 @@ class DangrAnalysis:
             found_states: list[angr.SimState] = []
             self.simulator.set_step_target(target=addr)
 
-            if init_states is None:
+            if not init_states:
                 found_states.extend(self.simulator.simulate())
             else:
                 for init_state in init_states:
                     self.simulator.set_initial_values(init_state)
                     found_states.extend(self.simulator.simulate())
-
             self._set_states_to_vars(action_elem.variables, found_states)
             self._add_constraints_to_states(action_elem.constraints, found_states)
 
@@ -139,7 +138,7 @@ class DangrAnalysis:
 
     def _set_states_to_vars(self, variables: list[Variable], states: list[angr.SimState]) -> None:
         for var in variables:
-            var.set_ref_state(states)
+            var.set_ref_states(states)
 
     def _add_constraints_to_states(
         self,
@@ -160,7 +159,7 @@ class DangrAnalysis:
             stop_points.add_variable(variable.ref_addr, variable)
 
         for constraint in self.constraints:
-            stop_points.add_constraint(constraint.constraint_address(), constraint)
+            stop_points.add_constraint(constraint.expression_address(), constraint)
 
         if not stop_points.last_address() or stop_points.last_address() < target:
             stop_points.add_address(target)
@@ -177,7 +176,7 @@ class DangrAnalysis:
         """
         Calculates dependencies of a given variable
         """
-        return self.dependency_analyzer.check_dependency(source, target, self.current_function)
+        return self.dependency_analyzer.check_dependency(source, target)
 
     def upper_bounded(self, expr_tree: ExpressionNode, states: list[angr.SimState]) -> bool:
         return all(

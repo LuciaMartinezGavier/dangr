@@ -7,9 +7,9 @@ import angr
 
 from tests.compilation_utils import compile_assembly, BinaryBasedTestCase
 
-from dangrlib.variables import ConcreteState, Register, Memory
+from dangrlib.variables import Register, Memory
 from dangrlib.dangr_types import Address
-from dangrlib.simulator import Simulator, ForwardSimulation, StepSimulation, BackwardSimulation, HookSimulation
+from dangrlib.simulator import Simulator, ForwardSimulation, StepSimulation, BackwardSimulation, HookSimulation, ConcreteState
 
 
 SIMULATOR_DIR = 'simulator'
@@ -63,12 +63,12 @@ SIMULATOR_TESTS: Final = [
             sts[0].memory.load(MEM, 4).concrete and\
             sts[0].solver.eval(sts[0].regs.rax) == FOO + BAR and\
             sts[0].solver.eval(sts[0].memory.load(MEM, 4)) == 0,
-        init_state=lambda p: ConcreteState({
+        init_state=lambda p: {
             Register(p, 'edi', 0x40_00dc): 1,
             Register(p, 'rsi', 0x40_00df): FOO,
             Register(p, 'rdx', 0x40_00e3): BAR,
             Register(p, 'rcx', 0x40_00e7): MEM
-        })
+        }
     ),
     SimulatorTestCase(
         asm_filename='forward.s',
@@ -80,12 +80,12 @@ SIMULATOR_TESTS: Final = [
             sts[0].solver.eval(sts[0].regs.rax) == 0 and\
             # NOTE: `reversed` because Intel uses little endian
             sts[0].solver.eval(sts[0].memory.load(MEM, 4).reversed) == 1,
-        init_state=lambda p: ConcreteState({
+        init_state=lambda p: {
             Register(p, 'edi', 0x40_00dc): 4,
             Register(p, 'rsi', 0x40_00df): FOO,
             Register(p, 'rdx', 0x40_00e3): 0,
             Register(p, 'rcx', 0x40_00e7): MEM
-        })
+        }
     ),
     SimulatorTestCase(
         asm_filename='forward.s',
@@ -105,21 +105,21 @@ SIMULATOR_TESTS: Final = [
                 s.solver.eval(s.memory.load(MEM, 4).reversed) == 0
                 for s  in sts
             ),
-        init_state=lambda p: ConcreteState({
+        init_state=lambda p: {
             Register(p, 'edi', 0x40_00dc): 4,
             Register(p, 'rcx', 0x40_00e7): MEM,
-        })
+        }
     ),
     SimulatorTestCase(
         asm_filename='step.s',
         simulator=lambda p: StepSimulation(p, 0x40_000a),
         expected=step_validate,
         targets=[0x40_0063, 0x40_00a1, 0x40_00f4, 0x40_017f],
-        init_state=lambda p: ConcreteState({
+        init_state=lambda p: {
             Memory(p, MEM, len(ARR)*4, 0x40_000a): array_to_hex(ARR),
             Register(p, 'rdi', 40_0012): MEM,
             Register(p, 'esi', 40_0016): len(ARR)
-        })
+        }
     ),
     SimulatorTestCase(
         asm_filename='hook.s',
@@ -134,7 +134,7 @@ SIMULATOR_TESTS: Final = [
         expected=lambda states: all(arg == context[0]-i for arg, i in enumerate(context)) and\
                                 len(states) == 1 and\
                                 states[0].solver.eval(states[0].regs.rax) == prod(context),
-        init_state=lambda p: ConcreteState({Register(p, 'edi', 0x40_0057): context[0]})
+        init_state=lambda p: {Register(p, 'edi', 0x40_0057): context[0]}
     ),
     SimulatorTestCase(
         asm_filename='backward.s',

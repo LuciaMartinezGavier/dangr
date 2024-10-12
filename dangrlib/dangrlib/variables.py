@@ -9,20 +9,14 @@ Classes:
     - Literal: Represents a constant literal value in symbolic execution.
     - Deref: Represents a dereference operation in symbolic execution.
 
-- VariableFactory: A factory class for creating Variable objects.
-- Argument: A data class representing an argument in a function call.
-- ConcreteState: A class for mapping variables to their concrete values.
-
 """
 
 from abc import abstractmethod, ABC
-from dataclasses import dataclass
 from functools import wraps
-from typing import override, ItemsView, Final
+from typing import override, Final
 import angr
 import claripy
 
-from dangrlib.jasm_findings import CaptureInfo
 from dangrlib.dangr_types import Address, AngrExpr, BYTE_SIZE
 
 
@@ -49,10 +43,10 @@ class Variable(ABC):
     def __init__(self, project, ref_addr: Address):
         self.project: Final = project
         self.ref_addr: Final = ref_addr
-        self.reference_states: list[angr.SimState] | None = None
+        self.reference_states: set[angr.SimState] | None = None
 
     @abstractmethod
-    def set_ref_state(self, states: list[angr.SimState]) -> None:
+    def set_ref_states(self, states: list[angr.SimState]) -> None:
         """
         Set the states asociated to the variable
         """
@@ -142,8 +136,8 @@ class Register(Variable):
         self.name: Final = reg_name
 
     @override
-    def set_ref_state(self, states: list[angr.SimState]) -> None:
-        self.reference_states = states
+    def set_ref_states(self, states: list[angr.SimState]) -> None:
+        self.reference_states = set(states)
 
     @override
     @Variable.ref_state_is_set
@@ -161,7 +155,12 @@ class Register(Variable):
 
     @override
     def size(self) -> int:
-        return self.project.arch.get_register_by_name(self.name).size
+        arch = self.project.arch
+        offset = arch.get_register_offset(self.name)
+        possible_sizes = set([size for offset, size in arch.register_size_names.keys()])
+
+        size = next(i for i in possible_sizes if arch.register_size_names.get((offset, i), '') == self.name)
+        return size
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Register):
@@ -179,7 +178,8 @@ class Register(Variable):
         return self.project.arch.get_register_by_name(self.name).name
 
     def __repr__(self) -> str:
-        return ('<(x) ' if self.reference_states else '<') + f'Register {self.name} in {hex(self.ref_addr)}'
+        return ('<(x) ' if self.reference_states else '<') +\
+                f'Register {self.name} in {hex(self.ref_addr)}>'
 
 
 class Memory(Variable):
@@ -204,8 +204,8 @@ class Memory(Variable):
         }
 
     @override
-    def set_ref_state(self, states: list[angr.SimState]) -> None:
-        self.reference_states = states
+    def set_ref_states(self, states: list[angr.SimState]) -> None:
+        self.reference_states = set(states)
 
     @override
     @Variable.ref_state_is_set
@@ -228,6 +228,11 @@ class Memory(Variable):
         return hash((self.project, self.addr, self.size, self.ref_addr))
 
 
+    def __repr__(self) -> int:
+        return ('<(x) ' if self.reference_states else '<') +\
+               f'Memory ({hex(self.addr)}, {self.size()}) reference in {hex(self.ref_addr)}>'
+
+
 class Literal(Variable):
     """
     A class representing a literal constant value.
@@ -248,8 +253,8 @@ class Literal(Variable):
         }
 
     @override
-    def set_ref_state(self, states: list[angr.SimState]) -> None:
-        self.reference_states = states
+    def set_ref_states(self, states: list[angr.SimState]) -> None:
+        self.reference_states = set(states)
 
     @override
     def set_value(self, value: int) -> None:
@@ -267,6 +272,9 @@ class Literal(Variable):
 
     def __hash__(self) -> int:
         return hash((self.project, self.value))
+
+    def __repr__(self) -> None:
+        return f'<Literal {self.value} in {hex(self.ref_addr)}>'
 
 class Deref(Variable):
     """
@@ -298,9 +306,9 @@ class Deref(Variable):
         }
 
     @override
-    def set_ref_state(self, states: list[angr.SimState]) -> None:
-        self.reference_states = states
-        self.base.reference_states = states
+    def set_ref_states(self, states: list[angr.SimState]) -> None:
+        self.reference_states = set(states)
+        self.base.reference_states = set(states)
 
     @override
     @Variable.ref_state_is_set
@@ -309,7 +317,7 @@ class Deref(Variable):
             state.memory.store(self.base.angr_repr()[state], value, int(self.size()))
 
     @Variable.ref_state_is_set
-    def evaluate_memory(self, state: angr.SimState) -> list[int]:
+    def evaluate_memory(self, state: angr.SimState, reverse: bool) -> list[int]:
         """
         Evaluates the memory referenced by the `self.base` register
         in the given `state` 
@@ -317,13 +325,13 @@ class Deref(Variable):
         Returns:
             int: The concrete values of the variable.
         """
-        return [
-            state.solver.eval(
-                state.memory.load(self.base.angr_repr()[der_state],
-                self.size())
-            )
-            for der_state in self.reference_states # type: ignore[union-attr]
-        ]
+        memory_contents = []
+        for der_state in self.reference_states: # type: ignore[union-attr]
+            memory = state.memory.load(self.base.angr_repr()[der_state], self.size())
+            if reverse:
+                memory = memory.reversed
+            memory_contents.append(state.solver.eval(memory))
+        return memory_contents
 
     @override
     def size(self) -> int:
@@ -337,121 +345,5 @@ class Deref(Variable):
     def __hash__(self) -> int:
         return hash((self.base, self.idx))
 
-
-@dataclass
-class Argument:
-    """
-    A data class representing an argument in a function call.
-    """
-    idx: int
-    call_address: int
-
-
-class VariableFactory:
-    """
-    A factory class for creating Variable objects (Register, Memory, or Literal).
-    """
-    REGISTER_MAP = {
-        1: 'rdi',
-        2: 'rsi',
-        3: 'rdx',
-        4: 'rcx',
-        5: 'r8',
-        6: 'r9',
-    }
-
-    def __init__(self, project) -> None:
-        self.project: Final = project
-
-    def create_from_capture(self, capture: CaptureInfo) -> Variable:
-        """
-        Creates a Variable from the structural match info.
-        """
-        match capture.captured:
-            case int():
-                return Literal(self.project, capture.captured, capture.address)
-            case str():
-                return Register(self.project, capture.captured, capture.address)
-            case _:
-                raise ValueError(f"Unsupported capture type: {type(capture.captured)}")
-
-    def create_from_argument(self, argument: Argument) -> Variable:
-        """
-        Creates a Variable from a function argument based on its index.
-
-        Arguments:
-            argument (Argument): The function argument.
-
-        Returns:
-            Variable: The corresponding Register variable.
-
-        Raises:
-            ValueError: If the argument index does not map to a register.
-        """
-        register_name = self.REGISTER_MAP.get(argument.idx)
-
-        if register_name is None:
-            raise ValueError(f"No register for argument index {argument.idx}")
-
-        return Register(self.project, register_name, argument.call_address)
-
-    def create_from_angr_name(self, angr_name: str, ref_addr: Address) -> Variable:
-        """
-        Create the Register or Memory object by parsing the name that angr provides
-        when obtaining the variables of the symbolic formula.
-
-        Examples:
-        >>> Register.angr_name_to_register('reg_rdx_507_64', 0x401111)
-        Register(name='rdx', 0x401111)
-
-        >>> Memory.angr_name_to_register('mem_ffffe00000000000_17_32', 0x401111)
-        Memory(addr=0xffffe00000000000, size=4, 0x401111)
-        """
-
-        if angr_name.startswith("reg"):
-            name = angr_name.split("_")[1]
-            return Register(self.project, name, ref_addr)
-
-        if angr_name.startswith("mem"):
-            _, addr_str, _, size = angr_name.split("_")
-            return Memory(self.project, int(addr_str, 16), int(int(size)/8), ref_addr)
-
-        raise ValueError("Unknown variable name")
-
-
-class ConcreteState(dict):
-    """
-    A class representing a concrete state in symbolic execution,
-    mapping variables to concrete values.
-    """
-    def add_value(self, variable: Variable, value: int) -> None:
-        """
-        Adds or updates the concrete value associated with a variable.
-
-        Args:
-            variable (Variable): The variable to associate with a concrete value.
-            value (int): The concrete value to assign to the variable.
-        """
-        self[variable] = value
-
-    def get_items(self) -> ItemsView[Variable, int]:
-        """
-        Returns all variable-value pairs in the concrete state.
-
-        Returns:
-            ItemsView[Variable, int]: A view of all items (variable-value pairs) in the
-            concrete state.
-        """
-        return self.items()
-
-    def get_value(self, variable: Variable) -> int:
-        """
-        Retrieves the concrete value associated with a variable.
-
-        Args:
-            variable (Variable): The variable whose concrete value is being retrieved.
-
-        Returns:
-            int: The concrete value associated with the variable.
-        """
-        return self[variable]
+    def __repr__(self) -> None:
+        return f'<Deref ${self.idx} + {self.base!r}>'
