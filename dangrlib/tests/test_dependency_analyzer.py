@@ -140,7 +140,7 @@ DEP_ANALYZER_TESTS: Final = [
         target=lambda proj: Literal(proj, 0x18, 0x400066),
         call_depth=1,
         expected=False
-    ),
+    )
 ]
 
 

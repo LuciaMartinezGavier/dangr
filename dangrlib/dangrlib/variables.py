@@ -40,7 +40,7 @@ class Variable(ABC):
             return method(self, *args, **kwargs)
         return wrapper
 
-    def __init__(self, project, ref_addr: Address):
+    def __init__(self, project: angr.Project, ref_addr: Address) -> None:
         self.project: Final = project
         self.ref_addr: Final = ref_addr
         self.reference_states: set[angr.SimState] | None = None
@@ -68,7 +68,7 @@ class Variable(ABC):
         """
 
     @ref_state_is_set
-    def dependencies(self, variable_factory) -> list['Variable']:
+    def dependencies(self, variable_factory: 'VariableFactory') -> list['Variable']: # type: ignore [name-defined]
         """
         Calculates the dependencies of this variable across multiple symbolic states.
 
@@ -131,7 +131,7 @@ class Register(Variable):
         name (str): The name of the register (e.g., 'rax', 'ebx').
         ref_addr (Address): The address where the register is used.
     """
-    def __init__(self, project, reg_name: str, ref_addr: Address):
+    def __init__(self, project: angr.Project, reg_name: str, ref_addr: Address) -> None:
         super().__init__(project, ref_addr)
         self.name: Final = reg_name
 
@@ -157,9 +157,11 @@ class Register(Variable):
     def size(self) -> int:
         arch = self.project.arch
         offset = arch.get_register_offset(self.name)
-        possible_sizes = set([size for offset, size in arch.register_size_names.keys()])
+        possible_sizes = set([int(size) for offset, size in arch.register_size_names.keys()])
 
-        size = next(i for i in possible_sizes if arch.register_size_names.get((offset, i), '') == self.name)
+        size = next(
+            i for i in possible_sizes if arch.register_size_names.get((offset, i), '') == self.name
+        )
         return size
 
     def __eq__(self, other: object) -> bool:
@@ -175,7 +177,7 @@ class Register(Variable):
         """
         Normalize the x86-64 register name to its 64-bit equivalent.
         """
-        return self.project.arch.get_register_by_name(self.name).name
+        return str(self.project.arch.get_register_by_name(self.name).name)
 
     def __repr__(self) -> str:
         return ('<(x) ' if self.reference_states else '<') +\
@@ -190,7 +192,7 @@ class Memory(Variable):
         addr (int): The memory address.
         size (int): The size of the memory region.
     """
-    def __init__(self, project, addr: int, size: int, ref_addr: Address) -> None:
+    def __init__(self, project: angr.Project, addr: int, size: int, ref_addr: Address) -> None:
         super().__init__(project, ref_addr)
         self._size: Final = size
         self.addr: Final = addr
@@ -200,7 +202,7 @@ class Memory(Variable):
     def angr_repr(self) -> dict[angr.SimState, AngrExpr]:
         return {
             state: state.memory.load(self.addr, self.size())
-            for state in self.reference_states
+            for state in self.reference_states # type: ignore[union-attr]
         }
 
     @override
@@ -228,7 +230,7 @@ class Memory(Variable):
         return hash((self.project, self.addr, self.size, self.ref_addr))
 
 
-    def __repr__(self) -> int:
+    def __repr__(self) -> str:
         return ('<(x) ' if self.reference_states else '<') +\
                f'Memory ({hex(self.addr)}, {self.size()}) reference in {hex(self.ref_addr)}>'
 
@@ -240,9 +242,10 @@ class Literal(Variable):
     Attributes:
         value (int): The literal value.
     """
-    def __init__(self, project, value: int, ref_addr: int) -> None:
+    def __init__(self, project: angr.Project, value: int, ref_addr: int) -> None:
         super().__init__(project, ref_addr)
         self.value: Final = value
+        # TODO: ref address or size
 
     @override
     @Variable.ref_state_is_set
@@ -262,7 +265,7 @@ class Literal(Variable):
 
     @override
     def size(self) -> int:
-        return self.project.factory.block(self.ref_addr).capstone.insns[0].insn.imm_size
+        return int(self.project.factory.block(self.ref_addr).capstone.insns[0].insn.imm_size)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Literal):
@@ -273,7 +276,7 @@ class Literal(Variable):
     def __hash__(self) -> int:
         return hash((self.project, self.value))
 
-    def __repr__(self) -> None:
+    def __repr__(self) -> str:
         return f'<Literal {self.value} in {hex(self.ref_addr)}>'
 
 class Deref(Variable):
@@ -335,7 +338,7 @@ class Deref(Variable):
 
     @override
     def size(self) -> int:
-        return self.project.factory.block(self.ref_addr).capstone.insns[0].insn.operands[0].size
+        return int(self.project.factory.block(self.ref_addr).capstone.insns[0].insn.operands[0].size)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Deref):
@@ -345,5 +348,5 @@ class Deref(Variable):
     def __hash__(self) -> int:
         return hash((self.base, self.idx))
 
-    def __repr__(self) -> None:
+    def __repr__(self) -> str:
         return f'<Deref ${self.idx} + {self.base!r}>'

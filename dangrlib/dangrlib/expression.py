@@ -1,7 +1,7 @@
 from typing import override
 from abc import ABC, abstractmethod
 from itertools import product
-from dangrlib.dangr_types import AngrExpr, Address
+from dangrlib.dangr_types import AngrExpr, Address, Bool
 from dangrlib.variables import Variable
 
 class ExpressionNode(ABC):
@@ -40,7 +40,7 @@ class VarNode(ExpressionNode):
     def size(self) -> int:
         return self.variable.size()
 
-    def __repr__(self) -> None:
+    def __repr__(self) -> str:
         return f'VarNode({self.variable!r})'
 
 class BinaryOpNode(ExpressionNode):
@@ -63,31 +63,37 @@ class EqualNode(BinaryOpNode):
     @override
     def create_expressions(self) -> list[AngrExpr]:
         return [
-            lh == rh for lh, rh in
+            lh == rh for lh, rh in # type: ignore [misc]
             product(self.lh.create_expressions(), self.rh.create_expressions())
         ]
 
-    def __repr__(self) -> None:
+    def __repr__(self) -> str:
         return f'{self.lh!r} == {self.rh!r}'
 
 class SumNode(BinaryOpNode):
     @override
     def create_expressions(self) -> list[AngrExpr]:
-        return [
-            lh + rh for lh, rh in 
-            product(self.lh.create_expressions(), self.rh.create_expressions())
-        ]
+        lh_expr = self.lh.create_expressions()
+        rh_expr = self.rh.create_expressions()
 
-    def __repr__(self) -> None:
+        if any(isinstance(sub_expr, Bool) for sub_expr in lh_expr + rh_expr):
+            raise TypeError(f"Unsupported operand type(s): {self.lh!r} + {self.rh!r}")
+
+        return list(set(lh + rh for lh, rh in product(lh_expr, rh_expr))) # type: ignore [operator]
+
+    def __repr__(self) -> str:
         return f'{self.lh!r} + {self.rh!r}'
 
 class MultNode(BinaryOpNode):
     @override
     def create_expressions(self) -> list[AngrExpr]:
-        return [
-            lh * rh for lh, rh in
-            product(self.lh.create_expressions(), self.rh.create_expressions())
-        ]
+        lh_expr = self.lh.create_expressions()
+        rh_expr = self.rh.create_expressions()
 
-    def __repr__(self) -> None:
+        if any(isinstance(sub_expr, Bool) for sub_expr in lh_expr + rh_expr):
+            raise TypeError(f"Unsupported operand type(s): {self.lh!r} * {self.rh!r}")
+
+        return list(set(lh * rh for lh, rh in product(lh_expr, rh_expr))) # type: ignore [operator]
+
+    def __repr__(self) -> str:
         return f'{self.lh!r} + {self.rh!r}'

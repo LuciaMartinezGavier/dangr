@@ -6,7 +6,12 @@ from dataclasses import dataclass
 Address = int
 Path = str
 CFGNode = angr.knowledge_plugins.cfg.cfg_node.CFGNode
-AngrExpr = claripy.ast.bv.BV | claripy.ast.bool.Bool
+RegOffset = int
+
+BV = claripy.ast.bv.BV
+Bool = claripy.ast.bool.Bool
+
+AngrExpr = BV | Bool
 BYTE_SIZE = 8
 
 @dataclass

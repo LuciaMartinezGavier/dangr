@@ -1,8 +1,8 @@
-from typing import Final
+from typing import Final, Tuple
 import angr
 from dangrlib.variables import Variable, Register
 from dangrlib.simulator import BackwardSimulation, HookSimulation, ConcreteState
-from dangrlib.dangr_types import Address
+from dangrlib.dangr_types import Address, RegOffset
 
 
 class ArgumentsAnalyzer:
@@ -19,7 +19,7 @@ class ArgumentsAnalyzer:
         self.project: Final = project
         self.cfg: Final = cfg
         self.max_depth = max_depth
-        self.first_read_addrs = {}
+        self.first_read_addrs: dict[RegOffset, Tuple[int, Address] | None] = {}
 
     def get_fn_args(self, fn_addr: Address) -> list[Variable]:
         """
@@ -27,10 +27,18 @@ class ArgumentsAnalyzer:
         """
         func = self.cfg.functions.get(fn_addr)
         self.project.analyses.VariableRecoveryFast(func)
-        cca = self.project.analyses.CallingConvention(func, self.cfg, analyze_callsites=True)
-        self.first_read_addrs = {
-            reg.check_offset(self.project.arch): None for reg in cca.cc.arg_locs(cca.prototype)
-        }
+        cca = self.project.analyses.CallingConvention(func, self.cfg.model, analyze_callsites=True)
+
+        if cca.cc is None:
+            raise ValueError("Unsupported calling convention")
+
+        args = cca.cc.arg_locs(cca.prototype)
+
+        for arg in args:
+            if not isinstance(arg, angr.calling_conventions.SimRegArg):
+                raise TypeError(f"Unsupported argument {arg}")
+
+            self.first_read_addrs[arg.check_offset(self.project.arch)] = None
 
         h_simulator = HookSimulation(
             project=self.project,
@@ -43,15 +51,30 @@ class ArgumentsAnalyzer:
 
         h_simulator.simulate()
 
-        return [
-            Register(self.project, self.project.arch.register_size_names[offset, size], addr)
-            for offset, (size, addr) in self.first_read_addrs.items()]
+        found_args: list[Variable] = []
+        for offset, found_info in self.first_read_addrs.items():
 
+            if found_info is None:
+                raise ValueError("Argument couldn't be found")
+
+            size, addr = found_info
+            reg_name = self.project.arch.register_size_names[offset, size]
+
+            found_args.append(Register(self.project, reg_name, addr))
+        return found_args
 
     def _record_reg_read(self, state: angr.SimState) -> None:
         """Record the instruction address of the first read of the register."""
-        addr = state.inspect.instruction
-        offset = state.solver.eval(state.inspect.reg_read_offset)
+        if hasattr(state.inspect, 'instruction'):
+            addr = state.inspect.instruction
+        else:
+            raise ValueError("Instruction address couldn't be found")
+
+        if hasattr(state.inspect, 'reg_read_offset'):
+            offset = state.solver.eval(state.inspect.reg_read_offset)
+        else:
+            raise ValueError("Register read offset was not set")
+
         if offset in self.first_read_addrs and self.first_read_addrs[offset] is None:
             size = state.block(addr).capstone.insns[0].insn.operands[0].size
             self.first_read_addrs[offset] = (size, addr)

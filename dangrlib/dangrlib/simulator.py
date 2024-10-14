@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 from typing import override, Final, Callable
 from dataclasses import dataclass
 from copy import deepcopy
-from angr import SimState, SimulationManager, BP_AFTER
+from angr import SimState, SimulationManager, BP_AFTER, Project
+from angr.analyses import CFGFast
 
 from dangrlib.variables import Variable
 from dangrlib.dangr_types import Address, CFGNode
-
 ConcreteState = dict['Variable', int]
 
 EXTERNAL_ADDR_SPACE_BASE: Final = 0x500000
@@ -23,7 +23,7 @@ class Simulator(ABC):
         project (angr.Project): The angr project to simulate.
         init_addr (Address): The initial address where the simulation starts.
     """
-    def __init__(self, project) -> None:
+    def __init__(self, project: Project) -> None:
         self.project = project
         self.initial_values: None | ConcreteState = None
 
@@ -67,7 +67,7 @@ class ForwardSimulation(Simulator):
     """
     Simulate until reaching a target
     """
-    def __init__(self, project, init_addr, target) -> None:
+    def __init__(self, project: Project, init_addr: Address, target: Address) -> None:
         super().__init__(project)
         self.init_addr = init_addr
         self.target = target
@@ -95,7 +95,7 @@ class StepSimulation(Simulator):
     The simulation can be resumed from the previous state.
     """
 
-    def __init__(self, project, init_addr) -> None:
+    def __init__(self, project: Project, init_addr: Address) -> None:
         super().__init__(project)
         self.init_addr = init_addr
 
@@ -127,7 +127,8 @@ class BackwardSimulation(Simulator):
     Simualte backwards until variables are concrete
     """
     def __init__(
-        self, project, target, cfg, variables: list[Variable],
+        self, project: Project, target: Address,
+        cfg: CFGFast, variables: list[Variable],
         max_depth: int | None = None
     ) -> None:
 
@@ -141,9 +142,18 @@ class BackwardSimulation(Simulator):
     @override
     def simulate(self) -> list[SimState]:
         target_node = self.cfg.model.get_any_node(self.target)
+
+        if target_node is None:
+            raise ValueError("Target node not found")
+
         rec_ctx = RecursiveCtx(0, None, [target_node])
         self._rec_simulate(target_node, rec_ctx)
         return self.states_found
+
+    def _node_addr(self, node: CFGNode) -> Address:
+        if not isinstance(node.addr, int):
+            raise ValueError(f"Unsupported node {node}")
+        return node.addr
 
     def _rec_simulate(
         self,
@@ -158,9 +168,12 @@ class BackwardSimulation(Simulator):
         it returns the concrete values of the registers in that path.
         """
         initial_node = rec_ctx.path[-1]
-        state = self._simulate_slice(initial_node.addr, target_node, rec_ctx.path)
+
+        state = self._simulate_slice(self._node_addr(initial_node), target_node, rec_ctx.path)
+
         if not state:
-            self.states_found.append(rec_ctx.backup_state)
+            if rec_ctx.backup_state:
+                self.states_found.append(rec_ctx.backup_state)
             return
 
         for var in self.variables:
@@ -184,12 +197,12 @@ class BackwardSimulation(Simulator):
 
         initial = self._initialize_state(start)
         simgr = self.project.factory.simulation_manager(initial)
-        state_found = self._get_finding(simgr, target_node.addr)
+        state_found = self._get_finding(simgr, self._node_addr(target_node))
 
         while simgr.active and not state_found:
             self._remove_states(simgr.active, pred)
             simgr.step()
-            state_found = self._get_finding(simgr, target_node.addr)
+            state_found = self._get_finding(simgr, self._node_addr(target_node))
 
         return state_found
 
@@ -213,13 +226,13 @@ class HookSimulation(Simulator):
     """
     def __init__(
         self,
-        project,
+        project: Project,
         init_addr: Address,
         event: str,
-        action: Callable[SimState, None],
-        when,
-        stop: Callable[list[SimState], bool],
-        condition: Callable[SimState, bool] | None = None
+        action: Callable[[SimState], None],
+        when: str, # angr constant BP_BEFORE | BP_AFTER | BP_BOTH
+        stop: Callable[[list[SimState]], bool],
+        condition: Callable[[SimState], bool] | None = None
     ) -> None:
 
         super().__init__(project)

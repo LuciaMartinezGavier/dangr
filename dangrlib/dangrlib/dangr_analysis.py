@@ -96,8 +96,9 @@ class DangrAnalysis:
         raise ValueError(f'Function not found for target address {hex(self.struct_f.start)}')
 
 
+    @struct_finding_is_set
     def get_fn_args(self) -> list[Variable]:
-        return self.arguments_analyzer.get_fn_args(self.current_function)
+        return self.arguments_analyzer.get_fn_args(self.current_function) # type: ignore [arg-type]
 
     @struct_finding_is_set
     def concretize_fn_args(self) -> list[ConcreteState]:
@@ -108,7 +109,7 @@ class DangrAnalysis:
         Returns:
             list[ConcreteState]: all the possible combinations of the arguments values
         """
-        return self.arguments_analyzer.solve_arguments(self.current_function, self.get_fn_args())
+        return self.arguments_analyzer.solve_arguments(self.current_function, self.get_fn_args()) # type: ignore [arg-type]
 
     @struct_finding_is_set
     def simulate(
@@ -120,17 +121,17 @@ class DangrAnalysis:
         Symbolic execute the current function until the target is found
         """
         checkpoints = self._create_checkpoints(target)
-        for addr, action_elem in checkpoints:
+        for addr, action_elem in checkpoints.items():
 
             found_states: list[angr.SimState] = []
-            self.simulator.set_step_target(target=addr)
+            self.simulator.set_step_target(target=addr) # type: ignore [union-attr]
 
             if not init_states:
-                found_states.extend(self.simulator.simulate())
+                found_states.extend(self.simulator.simulate()) # type: ignore [union-attr]
             else:
                 for init_state in init_states:
-                    self.simulator.set_initial_values(init_state)
-                    found_states.extend(self.simulator.simulate())
+                    self.simulator.set_initial_values(init_state) # type: ignore [union-attr]
+                    found_states.extend(self.simulator.simulate()) # type: ignore [union-attr]
             self._set_states_to_vars(action_elem.variables, found_states)
             self._add_constraints_to_states(action_elem.constraints, found_states)
 
@@ -152,7 +153,7 @@ class DangrAnalysis:
                     state.add_constraints(expr)
 
 
-    def _create_checkpoints(self, target) -> 'Checkpoints':
+    def _create_checkpoints(self, target: Address) -> 'Checkpoints':
         checkpoints = Checkpoints()
 
         for variable in self.variables:
@@ -161,7 +162,7 @@ class DangrAnalysis:
         for constraint in self.constraints:
             checkpoints.add_constraint(constraint.expression_address(), constraint)
 
-        if not checkpoints.last_address() or checkpoints.last_address() < target:
+        if checkpoints.last_address() is None or checkpoints.last_address() < target: # type: ignore [operator]
             checkpoints.add_address(target)
 
         return checkpoints.sorted()
@@ -171,6 +172,14 @@ class DangrAnalysis:
         Adds a constraints to the analysis
         """
         self.constraints.append(constraint)
+
+
+    def satisfiable(self, states: list[angr.SimState]) -> bool:
+        """
+        Returns True if all the constraints can be satisfied at the same time
+        in any of the states given.
+        """
+        return any(state.solver.satisfiable() for state in states)
 
     def depends(self, source: Variable, target: Variable) -> bool:
         """
@@ -189,7 +198,7 @@ class DangrAnalysis:
 
 CheckpointGroup = namedtuple('CheckpointGroup', ['variables', 'constraints'])
 
-class Checkpoints(dict):
+class Checkpoints(dict[Address, CheckpointGroup]):
 
     @staticmethod
     def ensure_address(func):
@@ -214,11 +223,18 @@ class Checkpoints(dict):
     def add_address(self, address: Address) -> None:
         self[address] = CheckpointGroup([], [])
 
-    def sorted(self) -> ItemsView[Address, Variable | ExpressionNode]:
-        return sorted(self.items())
+    def sorted(self) -> 'Checkpoints':
+        """
+        Return a new Checkpoints object with items sorted by the dictionary keys.
+        """
+        sorted_checkpoints = Checkpoints(sorted(self.items()))
+        return sorted_checkpoints
+
 
     def last_address(self) -> Address | None:
         if not self:
             return None
 
-        return self.sorted()[-1][0]
+        sorted_checkpoints = self.sorted()
+        last_key = next(reversed(sorted_checkpoints), None)
+        return last_key

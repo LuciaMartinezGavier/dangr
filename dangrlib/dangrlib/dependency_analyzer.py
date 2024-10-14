@@ -1,14 +1,14 @@
 from typing import Final
 from itertools import product
-from networkx import DiGraph
-from networkx.algorithms import has_path
-from multimethod import multimethod
+
+from networkx import DiGraph # type: ignore [import-untyped]
+from networkx.algorithms import has_path # type: ignore [import-untyped]
+
 import angr
 
 from dangrlib.dangr_types import Address
-from dangrlib.variables import Variable, Literal, Register, Memory, Deref
+from dangrlib.variables import Variable
 from dangrlib.variable_factory import VariableFactory
-from dangrlib.simulator import ForwardSimulation
 
 class DependencyAnalyzer:
     """
@@ -17,7 +17,11 @@ class DependencyAnalyzer:
     """
     CALL_DEPTH_DEFAULT: Final = 10
 
-    def __init__(self, project: angr.Project, variable_factory: VariableFactory, call_depth: int | None = None):
+    def __init__(
+        self, project: angr.Project,
+        variable_factory: VariableFactory,
+        call_depth: int | None = None
+    ):
         self.project = project
         self.ddg: DiGraph | None = None
         self.call_depth = call_depth or self.CALL_DEPTH_DEFAULT
@@ -39,20 +43,8 @@ class DependencyAnalyzer:
 
         self.ddg = self.project.analyses.DDG(cfg=cfg, start=start_address)
 
-    def _instr_dep(self, source: Address, target: Address) -> bool:
-        """
-        Checks if there exists a path in the data dependency graph
-        """
-        return any(
-            has_path(self.ddg.graph, src_node, trg_node)
-            for src_node, trg_node in product(
-                self._find_reference_nodes(source),
-                self._find_reference_nodes(target)
-            )
-        )
-
     def _find_reference_nodes(self, addr: Address) -> list[angr.code_location.CodeLocation]:
-        return [node for node in self.ddg.graph.nodes() if node.ins_addr == addr]
+        return [node for node in self.ddg.graph.nodes() if node.ins_addr == addr] # type: ignore [union-attr]
 
     def check_dependency(self, source: Variable, target: Variable) -> bool:
         """
@@ -70,4 +62,11 @@ class DependencyAnalyzer:
         """
         if not self.ddg:
             raise ValueError("Dependency graph is None. Call create_dependency_graph() first.")
-        return self._instr_dep(source.ref_addr, target.ref_addr)
+
+        return any(
+            has_path(self.ddg.graph, src_node, trg_node)
+            for src_node, trg_node in product(
+                self._find_reference_nodes(source.ref_addr),
+                self._find_reference_nodes(target.ref_addr)
+            )
+        )

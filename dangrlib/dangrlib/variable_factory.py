@@ -1,9 +1,8 @@
 from typing import Final
-
-from typing import Final
+import angr
 from dangrlib.jasm_findings import CaptureInfo
-from dangrlib.dangr_types import Argument, Address
-from dangrlib.variables import Variable, Register, Memory, Literal, BYTE_SIZE
+from dangrlib.dangr_types import Argument, Address, BYTE_SIZE
+from dangrlib.variables import Variable, Register, Memory, Literal
 
 
 class VariableFactory:
@@ -19,7 +18,7 @@ class VariableFactory:
         6: 'r9',
     }
 
-    def __init__(self, project) -> None:
+    def __init__(self, project: angr.Project) -> None:
         self.project: Final = project
 
     def create_from_capture(self, capture: CaptureInfo) -> Variable:
