@@ -1,8 +1,9 @@
 from typing import override
 from abc import ABC, abstractmethod
 from itertools import product
-from dangrlib.dangr_types import AngrExpr, Address, Bool
-from dangrlib.variables import Variable
+
+from dangr_rt.dangr_types import AngrExpr, Address, Bool, BYTE_SIZE
+from dangr_rt.variables import Variable
 
 class ExpressionNode(ABC):
 
@@ -23,6 +24,26 @@ class ExpressionNode(ABC):
         """
         Return the size (in bits) of the expression
         """
+
+class IsMaxNode(ExpressionNode):
+    def __init__(self, expr: ExpressionNode, offset: int = 0):
+        self.expr = expr
+        self.offset = offset
+
+    @override
+    def create_expressions(self) -> list[AngrExpr]:
+        return self.expr == 2**(self.expr.size() * BYTE_SIZE) - self.offset
+
+    @override
+    def size(self) -> int:
+        return self.expr.size()
+
+    @override
+    def expression_address(self) -> Address:
+        return self.expr.expression_address()
+
+    def __repr__(self) -> str:
+        return f'IsMaxNode({self.expr!r})'
 
 class VarNode(ExpressionNode):
     def __init__(self, variable: Variable) -> None:
@@ -69,6 +90,15 @@ class EqualNode(BinaryOpNode):
 
     def __repr__(self) -> str:
         return f'{self.lh!r} == {self.rh!r}'
+
+class AndNode(BinaryOpNode):
+    @override
+    def create_expressions(self) -> list[AngrExpr]:
+        lh_expr = self.lh.create_expressions()
+        rh_expr = self.rh.create_expressions()
+        if not all(isinstance(sub_expr, Bool) for sub_expr in lh_expr + rh_expr):
+            raise TypeError(f"Unsupported operand type(s): {self.lh!r} + {self.rh!r}")
+        return list(set(lh & rh for lh, rh in product(lh_expr, rh_expr))) # type: ignore [operator]
 
 class SumNode(BinaryOpNode):
     @override

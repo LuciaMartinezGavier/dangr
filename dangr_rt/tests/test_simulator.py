@@ -5,21 +5,20 @@ from typing import Final, Callable, Any
 import pytest
 import angr
 
-from tests.compilation_utils import compile_assembly, BinaryBasedTestCase
+from tests.conftest import BinaryBasedTestCase
 
-from dangrlib.variables import Register, Memory
-from dangrlib.dangr_types import Address
-from dangrlib.simulator import Simulator, ForwardSimulation, StepSimulation, BackwardSimulation, HookSimulation, ConcreteState
+from dangr_rt.variables import Register, Memory
+from dangr_rt.dangr_types import Address
+from dangr_rt.simulator import Simulator, ForwardSimulation, StepSimulation, BackwardSimulation, HookSimulation, ConcreteState
 
 
-SIMULATOR_DIR = 'simulator'
-
-@dataclass
+@dataclass(kw_only=True)
 class SimulatorTestCase(BinaryBasedTestCase):
     simulator: Callable[angr.Project, Simulator]
     expected: Callable[list[angr.SimState], bool] | Callable[[list[angr.SimState], int], bool]
     init_state: Callable[angr.Project, ConcreteState] | None = None
     targets: list[Address] | None = None # only for step simulations
+    files_directory: str = 'simulator'
 
 FOO: Final = 539
 BAR: Final = 324
@@ -159,8 +158,7 @@ SIMULATOR_TESTS: Final = [
     )
 ]
 
-@pytest.mark.parametrize("test_case", SIMULATOR_TESTS)
-@compile_assembly(SIMULATOR_DIR)
+@pytest.mark.parametrize("test_case", SIMULATOR_TESTS, indirect=True)
 def test_simulation(test_case):
     """
     Simulates a chunk and checks for properties in the resulting states

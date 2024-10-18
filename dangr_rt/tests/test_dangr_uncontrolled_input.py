@@ -3,26 +3,25 @@ from dataclasses import dataclass
 from typing import Callable
 from itertools import chain
 import angr
-from tests.compilation_utils import BinaryBasedTestCase, compile_assembly,fullpath
+from tests.conftest import BinaryBasedTestCase,fullpath
 
-from dangrlib.dangr_analysis import DangrAnalysis
-from dangrlib.jasm_findings import CaptureInfo, StructuralFinding
-from dangrlib.variables import Deref, Variable, Register, Literal
-from dangrlib.expression import EqualNode, VarNode
-from dangrlib.dangr_types import Argument
-from dangrlib.simulator import ConcreteState
+from dangr_rt.dangr_analysis import DangrAnalysis
+from dangr_rt.jasm_findings import CaptureInfo, StructuralFinding
+from dangr_rt.variables import Deref, Variable, Register, Literal
+from dangr_rt.expression import EqualNode, VarNode, IsMaxNode
+from dangr_rt.dangr_types import Argument
+from dangr_rt.simulator import ConcreteState
 
 DANGR_DIR = 'dangr_analysis'
 
 
-@dataclass
+@dataclass(kw_only=True)
 class UnctrlInTestCase(BinaryBasedTestCase):
     struct_findings: list
     expected_ptr: Callable[angr.Project, Variable]
     max_depth: int | None = None
     expect_detection: bool = True
-
-
+    files_directory: str = DANGR_DIR
 
 UNCNTRL_IN_TESTS = [
     UnctrlInTestCase(
@@ -65,8 +64,7 @@ UNCNTRL_IN_TESTS = [
     ),
 ]
 
-@pytest.mark.parametrize("test_case", UNCNTRL_IN_TESTS)
-@compile_assembly(DANGR_DIR)
+@pytest.mark.parametrize("test_case", UNCNTRL_IN_TESTS, indirect=True)
 def test_software_breakpoint_detection(test_case):
     """
     This a case of use of this proyect it consists on detecting a vulnerability based
@@ -96,9 +94,8 @@ def test_software_breakpoint_detection(test_case):
         if all(not dangr.depends(arg, ptr) for arg in args):
             break
 
+        dangr.add_constraint(IsMaxNode(VarNode(ptr), offset=Deref(ptr).size()))
+        #, MultNode(idx,size))):
         found_states = dangr.simulate(deref_address)
 
-        found = not dangr.upper_bounded(VarNode(ptr), found_states, Deref(ptr).size())
-        #, MultNode(idx,size))):
-
-        assert found == test_case.expect_detection
+        assert dangr.satisfiable(found_states)

@@ -5,8 +5,8 @@ from copy import deepcopy
 from angr import SimState, SimulationManager, BP_AFTER, Project
 from angr.analyses import CFGFast
 
-from dangrlib.variables import Variable
-from dangrlib.dangr_types import Address, CFGNode
+from dangr_rt.variables import Variable
+from dangr_rt.dangr_types import Address, CFGNode
 ConcreteState = dict['Variable', int]
 
 EXTERNAL_ADDR_SPACE_BASE: Final = 0x500000

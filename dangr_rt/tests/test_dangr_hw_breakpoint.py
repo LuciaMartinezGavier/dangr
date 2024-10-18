@@ -2,24 +2,26 @@ from typing import Callable
 from dataclasses import dataclass
 import pytest
 import angr
-from tests.compilation_utils import BinaryBasedTestCase, compile_assembly,fullpath
+from tests.conftest import BinaryBasedTestCase,fullpath
 
-from dangrlib.dangr_analysis import DangrAnalysis
-from dangrlib.jasm_findings import StructuralFinding
-from dangrlib.variables import Variable, Register
-from dangrlib.dangr_types import Argument
-from dangrlib.simulator import ConcreteState
+from dangr_rt.dangr_analysis import DangrAnalysis
+from dangr_rt.jasm_findings import StructuralFinding
+from dangr_rt.variables import Variable, Register, Literal
+from dangr_rt.dangr_types import Argument
+from dangr_rt.expression import AndNode, EqualNode, VarNode
+from dangr_rt.simulator import ConcreteState
 
 DANGR_DIR = 'dangr_analysis'
 
 
-@dataclass
+@dataclass(kw_only=True)
 class HwBrkpTestCase(BinaryBasedTestCase):
     struct_findings: list
     expected_args: Callable[[angr.Project, list[ConcreteState]], bool]
     expected_a1: Callable[angr.Project, Variable]
     expected_a3: Callable[angr.Project, Variable]
     max_depth: int | None = None
+    files_directory: str = DANGR_DIR
 
 
 HW_BRKP_TESTS = [
@@ -38,8 +40,7 @@ HW_BRKP_TESTS = [
     )
 ]
 
-@pytest.mark.parametrize("test_case", HW_BRKP_TESTS)
-@compile_assembly(DANGR_DIR)
+@pytest.mark.parametrize("test_case", HW_BRKP_TESTS, indirect=True)
 def test_software_breakpoint_detection(test_case):
     """
     This a case of use of this proyect it consists on detecting a debug evation.
@@ -66,11 +67,18 @@ def test_software_breakpoint_detection(test_case):
         list_concrete_values = dangr.concretize_fn_args()
         assert test_case.expected_args(dangr.project, list_concrete_values)
 
+        dangr.add_constraint(
+            AndNode(
+                EqualNode(
+                    VarNode(a1),
+                    VarNode(Literal(dangr.project,value=3, size=a1.size()))
+                ),
+                EqualNode(
+                    VarNode(a3),
+                    VarNode(Literal(a3.project, value=848, size=a3.size()))
+                ))
+        )
+
         found_states = dangr.simulate(ptrace_call, list_concrete_values)
         assert found_states
-
-        a1_values = a1.evaluate().values()
-        assert any(a1_v == 3 for a1_v in a1_values)
-
-        a3_values = a3.evaluate().values()
-        assert any(a3_v == 848 for a3_v in a3_values)
+        assert dangr.satisfiable(found_states)

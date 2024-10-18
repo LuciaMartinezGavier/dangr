@@ -2,23 +2,22 @@ from typing import Callable
 from dataclasses import dataclass
 import pytest
 import angr
-from tests.compilation_utils import BinaryBasedTestCase, compile_assembly,fullpath
+from tests.conftest import BinaryBasedTestCase,fullpath
 
-from dangrlib.dangr_analysis import DangrAnalysis
-from dangrlib.expression import EqualNode, VarNode
-from dangrlib.dangr_types import Argument
-from dangrlib.variables import Variable, Register, Literal
-from dangrlib.jasm_findings import StructuralFinding
+from dangr_rt.dangr_analysis import DangrAnalysis
+from dangr_rt.expression import EqualNode, VarNode
+from dangr_rt.dangr_types import Argument
+from dangr_rt.variables import Variable, Register, Literal
+from dangr_rt.jasm_findings import StructuralFinding
 
 DANGR_DIR = 'dangr_analysis'
 
-
-@dataclass
+@dataclass(kw_only=True)
 class AllocZeroTestCase(BinaryBasedTestCase):
     struct_findings: list
     expected_size: Callable[angr.Project, Variable]
     vulnerable: bool
-
+    files_directory: str = DANGR_DIR
 
 HW_BRKP_TESTS = [
     AllocZeroTestCase(
@@ -39,8 +38,7 @@ HW_BRKP_TESTS = [
     )
 ]
 
-@pytest.mark.parametrize("test_case", HW_BRKP_TESTS)
-@compile_assembly(DANGR_DIR)
+@pytest.mark.parametrize("test_case", HW_BRKP_TESTS, indirect=True)
 def test_software_breakpoint_detection(test_case):
     """
     This a case of use of this proyect it consists on detecting a AllocPool called with

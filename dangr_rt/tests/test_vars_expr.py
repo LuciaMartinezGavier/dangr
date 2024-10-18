@@ -1,18 +1,17 @@
-import angr
-import pytest
+import re
+from copy import deepcopy
 from typing import Final, Callable
 from dataclasses import dataclass
+import angr
+import pytest
 
-from tests.compilation_utils import compile_assembly, BinaryBasedTestCase
-from copy import deepcopy
-from dangrlib.variables import Variable, Register, Literal, Memory, Deref
-from dangrlib.variable_factory import VariableFactory
-from dangrlib.dangr_types import Address, Argument
-from dangrlib.jasm_findings import CaptureInfo
-from dangrlib.expression import ExpressionNode, VarNode, EqualNode, SumNode, MultNode
-import re
+from tests.conftest import BinaryBasedTestCase
+from dangr_rt.variables import Variable, Register, Literal, Memory, Deref
+from dangr_rt.variable_factory import VariableFactory
+from dangr_rt.dangr_types import Address, Argument
+from dangr_rt.jasm_findings import CaptureInfo
+from dangr_rt.expression import ExpressionNode, VarNode, EqualNode, SumNode, MultNode
 
-EXPR_DIR = 'exprs'
 VARS_ASM = 'vars.s'
 ADDR = 40_0000
 MEM = 0x1a1a_e0e0
@@ -23,6 +22,7 @@ class VarFactTestCase(BinaryBasedTestCase):
     args: list[CaptureInfo | Argument | str | Address]
     expected: Variable
     asm_filename: str = VARS_ASM
+    files_directory: str = 'exprs'
 
 @dataclass(kw_only=True)
 class VarTestCase(BinaryBasedTestCase):
@@ -31,6 +31,7 @@ class VarTestCase(BinaryBasedTestCase):
     expected_repr: str
     expected_neq: Callable[angr.Project, Variable]
     asm_filename: str = VARS_ASM
+    files_directory: str = 'exprs'
 
 @dataclass(kw_only=True)
 class ExprTestCase(BinaryBasedTestCase):
@@ -40,7 +41,7 @@ class ExprTestCase(BinaryBasedTestCase):
     expected_addr: list[Address]
     expected_size: int
     set_ref_state: Callable[list[angr.SimState], None]
-
+    files_directory: str = 'exprs'
 
 VARFACTORY_TESTS = [
     VarFactTestCase(
@@ -158,8 +159,7 @@ EXPR_TESTS = [
     )
 ]
 
-@pytest.mark.parametrize("test_case", VARFACTORY_TESTS)
-@compile_assembly(EXPR_DIR)
+@pytest.mark.parametrize("test_case", VARFACTORY_TESTS, indirect=True)
 def test_variable_factory(test_case):
     p = angr.Project(test_case.binary, auto_load_libs=False)
     vf = VariableFactory(p)
@@ -180,8 +180,7 @@ def test_variable_factory_err():
         vf.create_from_angr_name('lit_12345_32', ADDR)
 
 
-@pytest.mark.parametrize("test_case", VAR_TESTS)
-@compile_assembly(EXPR_DIR)
+@pytest.mark.parametrize("test_case", VAR_TESTS, indirect=True)
 def test_variable(test_case):
     p = angr.Project(test_case.binary, auto_load_libs=False)
     vf = VariableFactory(p)
@@ -218,8 +217,7 @@ def test_variable(test_case):
             var.set_value(VALUE)
             assert VALUE == var.evaluate()[s]
 
-@pytest.mark.parametrize("test_case", EXPR_TESTS)
-@compile_assembly(EXPR_DIR)
+@pytest.mark.parametrize("test_case", EXPR_TESTS, indirect=True)
 def test_expression(test_case):
     p = angr.Project(test_case.binary, auto_load_libs=False)
     expr = test_case.expr(p)

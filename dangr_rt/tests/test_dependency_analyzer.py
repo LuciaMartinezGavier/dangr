@@ -2,13 +2,13 @@ from dataclasses import dataclass
 from typing import Final, Callable
 import pytest
 import angr
-from tests.compilation_utils import BinaryBasedTestCase, compile_assembly
-from dangrlib.dependency_analyzer import DependencyAnalyzer
-from dangrlib.variables import Variable, Register, Memory, Deref, Literal
-from dangrlib.variable_factory import VariableFactory
-from dangrlib.dangr_types import Address
+from tests.conftest import BinaryBasedTestCase
+from dangr_rt.dependency_analyzer import DependencyAnalyzer
+from dangr_rt.variables import Variable, Register, Memory, Deref, Literal
+from dangr_rt.variable_factory import VariableFactory
+from dangr_rt.dangr_types import Address
 
-@dataclass
+@dataclass(kw_only=True)
 class DependencyTestCase(BinaryBasedTestCase):
     """
     All the info needed to create a case test
@@ -24,8 +24,8 @@ class DependencyTestCase(BinaryBasedTestCase):
     target: Callable[angr.Project, Variable]
     expected: bool
     call_depth: int | None = None
+    files_directory: str = 'dependency_analyzer'
 
-DEP_ANALYZER_DIR = 'dependency_analyzer'
 DEP_ANALYZER_TESTS: Final = [
     DependencyTestCase(
         asm_filename="mini.s",
@@ -144,8 +144,7 @@ DEP_ANALYZER_TESTS: Final = [
 ]
 
 
-@pytest.mark.parametrize("test_case", DEP_ANALYZER_TESTS)
-@compile_assembly(DEP_ANALYZER_DIR)
+@pytest.mark.parametrize("test_case", DEP_ANALYZER_TESTS, indirect=True)
 def test_check_dependency(test_case):
     """Test checking a dependency between variables."""
     project = angr.Project(test_case.binary, auto_load_libs=False)

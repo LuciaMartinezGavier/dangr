@@ -1,8 +1,8 @@
 from typing import Final
 import angr
-from dangrlib.jasm_findings import CaptureInfo
-from dangrlib.dangr_types import Argument, Address, BYTE_SIZE
-from dangrlib.variables import Variable, Register, Memory, Literal
+from dangr_rt.jasm_findings import CaptureInfo
+from dangr_rt.dangr_types import Argument, Address, BYTE_SIZE
+from dangr_rt.variables import Variable, Register, Memory, Literal
 
 
 class VariableFactory:

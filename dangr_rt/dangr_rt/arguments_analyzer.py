@@ -1,8 +1,8 @@
 from typing import Final, Tuple
 import angr
-from dangrlib.variables import Variable, Register
-from dangrlib.simulator import BackwardSimulation, HookSimulation, ConcreteState
-from dangrlib.dangr_types import Address, RegOffset
+from dangr_rt.variables import Variable, Register
+from dangr_rt.simulator import BackwardSimulation, HookSimulation, ConcreteState
+from dangr_rt.dangr_types import Address, RegOffset
 
 
 class ArgumentsAnalyzer:

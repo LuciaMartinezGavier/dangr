@@ -6,9 +6,9 @@ from networkx.algorithms import has_path # type: ignore [import-untyped]
 
 import angr
 
-from dangrlib.dangr_types import Address
-from dangrlib.variables import Variable
-from dangrlib.variable_factory import VariableFactory
+from dangr_rt.dangr_types import Address
+from dangr_rt.variables import Variable
+from dangr_rt.variable_factory import VariableFactory
 
 class DependencyAnalyzer:
     """

@@ -1,5 +1,5 @@
 
-from dangr_types import Address
+from dangr_rt.dangr_types import Address
 from dataclasses import dataclass
 
 @dataclass
@@ -9,7 +9,13 @@ class CaptureInfo:
 # NOTE: Pattern obj  y Match obj
 
 class StructuralFinding:
-    def __init__(self, instr_address: list[int], address_captures: dict[str, Address], captured_regs: dict[str, CaptureInfo] = {}):
+    def __init__(
+        self,
+        instr_address: list[int],
+        address_captures: dict[str, Address],
+        captured_regs: dict[str, CaptureInfo]
+    ):
+
         if not instr_address:
             raise ValueError("No instruction found in pattern match")
 
@@ -30,10 +36,10 @@ def _parse_jasm_output():
 def structural_filter(binary_path, jasm_pattern) -> list[StructuralFinding]:
     _run_jasm()
     _parse_jasm_output()
-    return uncontrolled_input_mock()
+    return hardware_breakpoint_mock()
 
 def hardware_breakpoint_mock() -> list[StructuralFinding]:
-    return [StructuralFinding([0x401297], {"ptrace_call": 0x401297})]
+    return [StructuralFinding([0x40_11f3], {"ptrace_call": 0x40_11f3}, {})]
 
 def software_breakpoint_mock1() -> list[StructuralFinding]:
     """

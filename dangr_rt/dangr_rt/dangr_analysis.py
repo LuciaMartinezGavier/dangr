@@ -1,17 +1,16 @@
 from typing import Final,ItemsView
 from collections import namedtuple
-from functools import wraps
 import angr
 from itertools import product
 
-from dangrlib.jasm_findings import StructuralFinding
-from dangrlib.dangr_types import Address, Path, BYTE_SIZE
-from dangrlib.variables import Variable
-from dangrlib.variable_factory import VariableFactory
-from dangrlib.expression import ExpressionNode
-from dangrlib.simulator import Simulator, StepSimulation, ConcreteState
-from dangrlib.arguments_analyzer import ArgumentsAnalyzer
-from dangrlib.dependency_analyzer import DependencyAnalyzer
+from dangr_rt.jasm_findings import StructuralFinding
+from dangr_rt.dangr_types import Address, Path
+from dangr_rt.variables import Variable
+from dangr_rt.variable_factory import VariableFactory
+from dangr_rt.expression import ExpressionNode
+from dangr_rt.simulator import Simulator, StepSimulation, ConcreteState
+from dangr_rt.arguments_analyzer import ArgumentsAnalyzer
+from dangr_rt.dependency_analyzer import DependencyAnalyzer
 
 class DangrAnalysis:
     """
@@ -40,20 +39,17 @@ class DangrAnalysis:
         self.constraints: list[ExpressionNode]  = []
         self.variables: list[Variable] = []
 
-    @staticmethod
-    def struct_finding_is_set(method):
+
+    def _struct_finding_is_set(self):
         """
-        Decorator that checks if self.simulator, self.struct_f, and self.current_function
+        Checks if self.simulator, self.struct_f, and self.current_function
         are not None. Raises ValueError if any of them is None, indicating that
         set_finding should be called first.
         """
-        @wraps(method)
-        def wrapper(self, *args, **kwargs):
-            if self.simulator is None or self.struct_f is None or self.current_function is None:
-                raise ValueError("Analysis not properly initialized. Call `set_finding()` first.")
-            return method(self, *args, **kwargs)
 
-        return wrapper
+        if self.simulator is None or self.struct_f is None or self.current_function is None:
+            raise ValueError("Analysis not properly initialized. Call `set_finding()` first.")
+
 
 
     def add_variables(self, variables: list[Variable]) -> None:
@@ -96,11 +92,10 @@ class DangrAnalysis:
         raise ValueError(f'Function not found for target address {hex(self.struct_f.start)}')
 
 
-    @struct_finding_is_set
     def get_fn_args(self) -> list[Variable]:
+        self._struct_finding_is_set()
         return self.arguments_analyzer.get_fn_args(self.current_function) # type: ignore [arg-type]
 
-    @struct_finding_is_set
     def concretize_fn_args(self) -> list[ConcreteState]:
         """
         Returns a list with the concrete possible values of the arguments used
@@ -109,9 +104,9 @@ class DangrAnalysis:
         Returns:
             list[ConcreteState]: all the possible combinations of the arguments values
         """
+        self._struct_finding_is_set()
         return self.arguments_analyzer.solve_arguments(self.current_function, self.get_fn_args()) # type: ignore [arg-type]
 
-    @struct_finding_is_set
     def simulate(
         self,
         target: Address,
@@ -120,6 +115,7 @@ class DangrAnalysis:
         """
         Symbolic execute the current function until the target is found
         """
+        self._struct_finding_is_set()
         checkpoints = self._create_checkpoints(target)
         for addr, action_elem in checkpoints.items():
 
@@ -187,37 +183,20 @@ class DangrAnalysis:
         """
         return self.dependency_analyzer.check_dependency(source, target)
 
-    def upper_bounded(
-        self, expr_tree: ExpressionNode,
-        states: list[angr.SimState], offset: int = 0
-    ) -> bool:
-        return all(
-            state.solver.max(expr) < 2**(expr_tree.size() * BYTE_SIZE) - offset
-            for expr, state in product(expr_tree.create_expressions(), states)
-        )
-
 CheckpointGroup = namedtuple('CheckpointGroup', ['variables', 'constraints'])
 
 class Checkpoints(dict[Address, CheckpointGroup]):
 
-    @staticmethod
-    def ensure_address(func):
-        """
-        Initialize lists
-        """
-        @wraps(func)
-        def wrapper(self, addr, *args, **kwargs):
-            if addr not in self:
-                self.add_address(addr)
-            return func(self, addr, *args, **kwargs)
-        return wrapper
-
-    @ensure_address
     def add_variable(self, address: Address, variable: Variable) -> None:
+        if address not in self:
+            self.add_address(address)
+
         self[address].variables.append(variable)
 
-    @ensure_address
     def add_constraint(self, address: Address, constraint: ExpressionNode) -> None:
+        if address not in self:
+            self.add_address(address)
+
         self[address].constraints.append(constraint)
 
     def add_address(self, address: Address) -> None:

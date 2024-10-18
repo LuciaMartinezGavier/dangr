@@ -2,13 +2,13 @@ import pytest
 from typing import Final, Callable
 from dataclasses import dataclass
 import angr
-from tests.compilation_utils import compile_assembly, BinaryBasedTestCase
-from dangrlib.arguments_analyzer import ArgumentsAnalyzer
-from dangrlib.dangr_types import Address
-from dangrlib.variables import Register, Variable
-from dangrlib.simulator import ConcreteState
+from tests.conftest import BinaryBasedTestCase
+from dangr_rt.arguments_analyzer import ArgumentsAnalyzer
+from dangr_rt.dangr_types import Address
+from dangr_rt.variables import Register, Variable
+from dangr_rt.simulator import ConcreteState
 
-@dataclass
+@dataclass(kw_only=True)
 class ArgumentsTestCase(BinaryBasedTestCase):
     """
     All the info needed to create a case test
@@ -18,8 +18,7 @@ class ArgumentsTestCase(BinaryBasedTestCase):
     expected_args: Callable[angr.Project, list[Variable]]
     expected_values: Callable[angr.Project, list[ConcreteState]]
     max_depth: int | None = None
-
-ARG_ANALYZER_DIR = 'arguments_analyzer'
+    files_directory: str = 'arguments_analyzer'
 
 ARG_ANALYZER_TESTS: Final = [
     ArgumentsTestCase(
@@ -108,8 +107,7 @@ ARG_ANALYZER_TESTS: Final = [
 
 ]
 
-@pytest.mark.parametrize("test_case", ARG_ANALYZER_TESTS)
-@compile_assembly(ARG_ANALYZER_DIR)
+@pytest.mark.parametrize("test_case", ARG_ANALYZER_TESTS, indirect=True)
 def test_argument_analyzer(test_case):
     """Test if the arguments are correctly found"""
     project = angr.Project(test_case.binary, auto_load_libs=False)

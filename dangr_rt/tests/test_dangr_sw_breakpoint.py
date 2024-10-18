@@ -3,18 +3,18 @@ from dataclasses import dataclass
 from typing import Callable
 from itertools import chain
 import angr
-from tests.compilation_utils import BinaryBasedTestCase, compile_assembly,fullpath
+from tests.conftest import BinaryBasedTestCase,fullpath
 
-from dangrlib.dangr_analysis import DangrAnalysis
-from dangrlib.jasm_findings import CaptureInfo, StructuralFinding
-from dangrlib.variables import Deref, Variable, Register, Literal
-from dangrlib.expression import EqualNode, VarNode
-from dangrlib.simulator import ConcreteState
+from dangr_rt.dangr_analysis import DangrAnalysis
+from dangr_rt.jasm_findings import CaptureInfo, StructuralFinding
+from dangr_rt.variables import Deref, Variable, Register, Literal
+from dangr_rt.expression import EqualNode, VarNode
+from dangr_rt.simulator import ConcreteState
 
 DANGR_DIR = 'dangr_analysis'
 
 
-@dataclass
+@dataclass(kw_only=True)
 class SwBrkpTestCase(BinaryBasedTestCase):
     struct_findings: list
     expected_args: Callable[[angr.Project, list[ConcreteState]], bool]
@@ -24,6 +24,7 @@ class SwBrkpTestCase(BinaryBasedTestCase):
     expected_dx: Callable[angr.Project, Variable]
     reverse: bool
     max_depth: int | None = None
+    files_directory: str = DANGR_DIR
 
 
 SW_BRKP_TESTS = [
@@ -128,8 +129,7 @@ SW_BRKP_TESTS = [
     ),
 ]
 
-@pytest.mark.parametrize("test_case", SW_BRKP_TESTS)
-@compile_assembly(DANGR_DIR)
+@pytest.mark.parametrize("test_case", SW_BRKP_TESTS, indirect=True)
 def test_software_breakpoint_detection(test_case):
     """
     This is the first case of use of this proyect it consists on detecting a debug evation.
@@ -154,7 +154,7 @@ def test_software_breakpoint_detection(test_case):
         z = vf.create_from_capture(struc_find.captured_regs['z'])
         assert z == test_case.expected_z(dangr.project)
 
-        dx = Deref(ptr)
+        dx = Deref(ptr, reverse=True)
         assert dx == test_case.expected_dx(dangr.project)
 
         dangr.add_variables([y,z,dx])
@@ -165,12 +165,16 @@ def test_software_breakpoint_detection(test_case):
         assert test_case.expected_args(dangr.project, list_concrete_values)
 
         dangr.add_constraint(EqualNode(lh=VarNode(y), rh=VarNode(z)))
+        dangr.add_constraint(
+            EqualNode(
+                VarNode(dx),
+                VarNode(
+                    Literal(project=dx.project, value=0xfa1e0ff3, size=dx.size())
+                )
+            )
+        )
 
         found_states = dangr.simulate(cmp_address, list_concrete_values)
         assert found_states
 
-        dx_values = list(chain(*[
-            dx.evaluate_memory(state, reverse=True) for state in found_states
-        ]))
-
-        assert any(dx_value == 0xfa1e0ff3 for dx_value in dx_values)
+        assert dangr.satisfiable(found_states)
