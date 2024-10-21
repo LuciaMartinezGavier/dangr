@@ -5,9 +5,9 @@ import angr
 from tests.conftest import BinaryBasedTestCase,fullpath
 
 from dangr_rt.dangr_analysis import DangrAnalysis
-from dangr_rt.expression import EqualNode, VarNode
+from dangr_rt.expression import Eq
 from dangr_rt.dangr_types import Argument
-from dangr_rt.variables import Variable, Register, Literal
+from dangr_rt.variables import Variable, Register
 from dangr_rt.jasm_findings import StructuralFinding
 
 DANGR_DIR = 'dangr_analysis'
@@ -53,10 +53,9 @@ def test_software_breakpoint_detection(test_case):
 
         size = vf.create_from_argument(Argument(1, alloc_call, 4))
         assert size == test_case.expected_size(dangr.project)
-        zero = Literal(dangr.project, 0, alloc_call)
 
-        dangr.add_variables([size, zero])
-        dangr.add_constraint(EqualNode(VarNode(size), VarNode(zero)))
+        dangr.add_variables([size])
+        dangr.add_constraint(Eq(size, 0))
 
         found_states = dangr.simulate(alloc_call)
         assert found_states

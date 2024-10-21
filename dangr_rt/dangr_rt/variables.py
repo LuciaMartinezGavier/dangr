@@ -46,10 +46,16 @@ class Variable(ABC):
         """
 
     @abstractmethod
-    def angr_repr(self) -> dict[angr.SimState | None, AngrExpr]:
+    def _angr_repr(self) -> dict[angr.SimState | None, AngrExpr]:
         """
         Returns an angr compatible representation given a state
         """
+
+    def get_expr(self) -> list[AngrExpr]:
+        """
+        TODO
+        """
+        return list(self._angr_repr().values())
 
     @abstractmethod
     def set_value(self, value: int) -> None:
@@ -72,7 +78,7 @@ class Variable(ABC):
         deps: set[Variable] = set()
 
         for ref_state in self.reference_states: # type: ignore[union-attr]
-            state_variables: set[str] = getattr(self.angr_repr()[ref_state], 'variables', set())
+            state_variables: set[str] = getattr(self._angr_repr()[ref_state], 'variables', set())
 
             deps.update({
                 variable_factory.create_from_angr_name(var_name, self.ref_addr)
@@ -90,7 +96,7 @@ class Variable(ABC):
         """
         self._check_ref_state_is_set()
         return {
-            state: state.solver.eval(self.angr_repr()[state], cast_to=int)
+            state: state.solver.eval(self._angr_repr()[state], cast_to=int)
             for state in self.reference_states # type: ignore[union-attr]
         }
 
@@ -106,7 +112,7 @@ class Variable(ABC):
         """
         self._check_ref_state_is_set()
         return all(
-            self.angr_repr()[state].concrete
+            self._angr_repr()[state].concrete
             for state in self.reference_states # type: ignore[union-attr]
         )
 
@@ -134,7 +140,7 @@ class Register(Variable):
         self.reference_states = set(states)
 
     @override
-    def angr_repr(self) -> dict[angr.SimState, AngrExpr]:
+    def _angr_repr(self) -> dict[angr.SimState, AngrExpr]:
         self._check_ref_state_is_set()
         return {
             state: getattr(state.regs, self.name)
@@ -192,7 +198,7 @@ class Memory(Variable):
         self.addr: Final = addr
 
     @override
-    def angr_repr(self) -> dict[angr.SimState, AngrExpr]:
+    def _angr_repr(self) -> dict[angr.SimState, AngrExpr]:
         self._check_ref_state_is_set()
         # TODO: reverse if necesary
         return {
@@ -252,7 +258,7 @@ class Literal(Variable):
 
 
     @override
-    def angr_repr(self) -> dict[angr.SimState | None, AngrExpr]:
+    def _angr_repr(self) -> dict[angr.SimState | None, AngrExpr]:
         if self.reference_states:
             return {
                 state: claripy.BVV(self.value, self.size()*BYTE_SIZE)
@@ -312,14 +318,14 @@ class Deref(Variable):
         self.reverse: Final = reverse
 
     def _load_mem(self, state: angr.SimState) -> AngrExpr:
-        mem = state.memory.load(self.base.angr_repr()[state], int(self.size()))
+        mem = state.memory.load(self.base._angr_repr()[state], int(self.size()))
         if self.reverse:
             return mem.reversed
 
         return mem
 
     @override
-    def angr_repr(self) -> dict[angr.SimState, AngrExpr]:
+    def _angr_repr(self) -> dict[angr.SimState, AngrExpr]:
         self._check_ref_state_is_set()
         return {
             state: self._load_mem(state)
@@ -335,7 +341,7 @@ class Deref(Variable):
     def set_value(self, value: int) -> None:
         self._check_ref_state_is_set()
         for state in self.reference_states: # type: ignore[union-attr]
-            state.memory.store(self.base.angr_repr()[state], value, int(self.size()))
+            state.memory.store(self.base._angr_repr()[state], value, int(self.size()))
 
 
     def memory_contents(self, state: angr.SimState, reverse: bool) -> list[AngrExpr]:
@@ -349,7 +355,7 @@ class Deref(Variable):
         self._check_ref_state_is_set()
         memory_contents: list[AngrExpr] = []
         for der_state in self.reference_states: # type: ignore[union-attr]
-            memory = state.memory.load(self.base.angr_repr()[der_state], self.size())
+            memory = state.memory.load(self.base._angr_repr()[der_state], self.size())
             if reverse:
                 memory = memory.reversed
             memory_contents.append(memory)

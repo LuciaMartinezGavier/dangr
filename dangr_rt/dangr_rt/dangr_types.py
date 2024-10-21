@@ -8,10 +8,10 @@ Path = str
 CFGNode = angr.knowledge_plugins.cfg.cfg_node.CFGNode
 RegOffset = int
 
-BV = claripy.ast.bv.BV
-Bool = claripy.ast.bool.Bool
+AngrArith = claripy.ast.bv.BV | int
+AngrBool = claripy.ast.bool.Bool | bool
 
-AngrExpr = BV | Bool
+AngrExpr = AngrArith | AngrBool
 BYTE_SIZE = 8
 
 @dataclass

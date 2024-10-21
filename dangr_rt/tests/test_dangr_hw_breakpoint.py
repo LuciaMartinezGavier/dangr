@@ -8,7 +8,7 @@ from dangr_rt.dangr_analysis import DangrAnalysis
 from dangr_rt.jasm_findings import StructuralFinding
 from dangr_rt.variables import Variable, Register, Literal
 from dangr_rt.dangr_types import Argument
-from dangr_rt.expression import AndNode, EqualNode, VarNode
+from dangr_rt.expression import And, Eq
 from dangr_rt.simulator import ConcreteState
 
 DANGR_DIR = 'dangr_analysis'
@@ -67,17 +67,7 @@ def test_software_breakpoint_detection(test_case):
         list_concrete_values = dangr.concretize_fn_args()
         assert test_case.expected_args(dangr.project, list_concrete_values)
 
-        dangr.add_constraint(
-            AndNode(
-                EqualNode(
-                    VarNode(a1),
-                    VarNode(Literal(dangr.project,value=3, size=a1.size()))
-                ),
-                EqualNode(
-                    VarNode(a3),
-                    VarNode(Literal(a3.project, value=848, size=a3.size()))
-                ))
-        )
+        dangr.add_constraint(And(Eq(a1, 3), Eq(a3, 848)))
 
         found_states = dangr.simulate(ptrace_call, list_concrete_values)
         assert found_states

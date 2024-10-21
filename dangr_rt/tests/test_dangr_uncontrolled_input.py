@@ -8,7 +8,7 @@ from tests.conftest import BinaryBasedTestCase,fullpath
 from dangr_rt.dangr_analysis import DangrAnalysis
 from dangr_rt.jasm_findings import CaptureInfo, StructuralFinding
 from dangr_rt.variables import Deref, Variable, Register, Literal
-from dangr_rt.expression import EqualNode, VarNode, IsMaxNode
+from dangr_rt.expression import IsMax
 from dangr_rt.dangr_types import Argument
 from dangr_rt.simulator import ConcreteState
 
@@ -94,8 +94,7 @@ def test_software_breakpoint_detection(test_case):
         if all(not dangr.depends(arg, ptr) for arg in args):
             break
 
-        dangr.add_constraint(IsMaxNode(VarNode(ptr), offset=Deref(ptr).size()))
-        #, MultNode(idx,size))):
+        dangr.add_constraint(IsMax(ptr))
         found_states = dangr.simulate(deref_address)
 
         assert dangr.satisfiable(found_states)

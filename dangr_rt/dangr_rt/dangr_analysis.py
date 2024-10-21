@@ -1,13 +1,12 @@
-from typing import Final,ItemsView
+from typing import Final
 from collections import namedtuple
 import angr
-from itertools import product
 
 from dangr_rt.jasm_findings import StructuralFinding
 from dangr_rt.dangr_types import Address, Path
 from dangr_rt.variables import Variable
 from dangr_rt.variable_factory import VariableFactory
-from dangr_rt.expression import ExpressionNode
+from dangr_rt.expression import Expression
 from dangr_rt.simulator import Simulator, StepSimulation, ConcreteState
 from dangr_rt.arguments_analyzer import ArgumentsAnalyzer
 from dangr_rt.dependency_analyzer import DependencyAnalyzer
@@ -36,7 +35,7 @@ class DangrAnalysis:
         self.current_function: Address | None = None
 
         # simulation related
-        self.constraints: list[ExpressionNode]  = []
+        self.constraints: list[Expression]  = []
         self.variables: list[Variable] = []
 
 
@@ -139,12 +138,12 @@ class DangrAnalysis:
 
     def _add_constraints_to_states(
         self,
-        constraints: list[ExpressionNode],
+        constraints: list[Expression],
         states: list[angr.SimState]
     ) -> None:
 
         for constraint in constraints:
-            for expr in constraint.create_expressions():
+            for expr in constraint.get_expr():
                 for state in states:
                     state.add_constraints(expr)
 
@@ -156,14 +155,14 @@ class DangrAnalysis:
             checkpoints.add_variable(variable.ref_addr, variable)
 
         for constraint in self.constraints:
-            checkpoints.add_constraint(constraint.expression_address(), constraint)
+            checkpoints.add_constraint(constraint.ref_addr or target, constraint)
 
         if checkpoints.last_address() is None or checkpoints.last_address() < target: # type: ignore [operator]
             checkpoints.add_address(target)
 
         return checkpoints.sorted()
 
-    def add_constraint(self, constraint: ExpressionNode) -> None:
+    def add_constraint(self, constraint: Expression) -> None:
         """
         Adds a constraints to the analysis
         """
@@ -193,7 +192,7 @@ class Checkpoints(dict[Address, CheckpointGroup]):
 
         self[address].variables.append(variable)
 
-    def add_constraint(self, address: Address, constraint: ExpressionNode) -> None:
+    def add_constraint(self, address: Address, constraint: Expression) -> None:
         if address not in self:
             self.add_address(address)
 

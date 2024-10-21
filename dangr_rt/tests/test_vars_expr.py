@@ -1,16 +1,16 @@
 import re
+import pytest
 from copy import deepcopy
 from typing import Final, Callable
 from dataclasses import dataclass
 import angr
-import pytest
-
+import claripy
 from tests.conftest import BinaryBasedTestCase
 from dangr_rt.variables import Variable, Register, Literal, Memory, Deref
 from dangr_rt.variable_factory import VariableFactory
 from dangr_rt.dangr_types import Address, Argument
 from dangr_rt.jasm_findings import CaptureInfo
-from dangr_rt.expression import ExpressionNode, VarNode, EqualNode, SumNode, MultNode
+from dangr_rt.expression import Expression, Eq, Add, Mul
 
 VARS_ASM = 'vars.s'
 ADDR = 40_0000
@@ -36,10 +36,9 @@ class VarTestCase(BinaryBasedTestCase):
 @dataclass(kw_only=True)
 class ExprTestCase(BinaryBasedTestCase):
     asm_filename: str = VARS_ASM
-    expr: Callable[angr.Project, ExpressionNode]
+    expr: Callable[angr.Project, Expression]
     expected_expr: str
     expected_addr: list[Address]
-    expected_size: int
     set_ref_state: Callable[list[angr.SimState], None]
     files_directory: str = 'exprs'
 
@@ -110,51 +109,47 @@ VAR_TESTS = [
 
 EXPR_TESTS = [
     ExprTestCase(
-        expr=lambda p: VarNode(Register(p, 'rdi', 0x40_0016)),
-        expected_size=8,
+        expr=lambda p: Register(p, 'rdi', 0x40_0016),
         expected_expr="<BV64 reg_rdi_[0-9]+_64>",
         expected_addr=0x40_0016,
-        set_ref_state=lambda expr, sts: expr.variable.set_ref_states(sts)
+        set_ref_state=lambda expr, sts: expr.set_ref_states(sts)
     ),
     ExprTestCase(
-        expr=lambda p: EqualNode(
-            VarNode(Register(p, 'rdi', 0x40_0016)),
-            VarNode(Deref(Register(p, 'rbp', 0x40_0016), -8))
+        expr=lambda p: Eq(
+            Register(p, 'rdi', 0x40_0016),
+            Deref(Register(p, 'rbp', 0x40_0016), -8)
         ),
-        expected_size=8,
         expected_expr="<Bool reg_rdi_[0-9]+_64 == mem_[0-9a-f]+_[0-9]+_64>",
 
         expected_addr=0x40_0016,
         set_ref_state=lambda expr, sts: [
-            expr.lh.variable.set_ref_states(sts),
-            expr.rh.variable.set_ref_states(sts)
+            expr.lhs.set_ref_states(sts),
+            expr.rhs.set_ref_states(sts)
         ]
     ),
     ExprTestCase(
-        expr=lambda p: SumNode(
-            VarNode(Register(p, 'rdi', 0x40_0016)),
-            VarNode(Register(p, 'rax', 0x40_001a))
+        expr=lambda p: Add(
+            Register(p, 'rdi', 0x40_0016),
+            Register(p, 'rax', 0x40_001a)
         ),
-        expected_size=8,
         expected_expr="<BV64 reg_rdi_[0-9]+_64 \+ reg_rax_[0-9]+_64>",
 
         expected_addr=0x40_001a,
         set_ref_state=lambda expr, sts: [
-            expr.lh.variable.set_ref_states(sts),
-            expr.rh.variable.set_ref_states(sts)
+            expr.lhs.set_ref_states(sts),
+            expr.rhs.set_ref_states(sts)
         ]
     ),
     ExprTestCase(
-        expr=lambda p: MultNode(
-            VarNode(Memory(p, MEM, 4, 0x40_0012)),
-            VarNode(Register(p, 'eax', 0x40_001e))
+        expr=lambda p: Mul(
+            Memory(p, MEM, 4, 0x40_0012),
+            Register(p, 'eax', 0x40_001e)
         ),
-        expected_size=4,
         expected_expr=f'<BV32 mem_1a1ae0e0_[0-9]+_32 \* reg_eax_[0-9]+_32>',
         expected_addr=0x40_001e,
         set_ref_state=lambda expr, sts: [
-            expr.lh.variable.set_ref_states(sts),
-            expr.rh.variable.set_ref_states(sts)
+            expr.lhs.set_ref_states(sts),
+            expr.rhs.set_ref_states(sts)
         ]
     )
 ]
@@ -207,7 +202,7 @@ def test_variable(test_case):
     assert var.size() == test_case.expected_size
 
     var.set_ref_states([default_state]*N)
-    assert set(var.angr_repr().keys()) == var.reference_states
+    assert set(var._angr_repr().keys()) == var.reference_states
 
     if isinstance(var, Literal):
         with pytest.raises(ValueError):
@@ -224,12 +219,15 @@ def test_expression(test_case):
 
     test_case.set_ref_state(expr, [p.factory.blank_state()])
 
-    assert all(re.search(test_case.expected_expr, str(e)) for e in expr.create_expressions())
-    assert expr.expression_address() == test_case.expected_addr
-    assert expr.size() == test_case.expected_size
+    assert all(re.search(test_case.expected_expr, str(e)) for e in expr.get_expr())
+    assert expr.ref_addr == test_case.expected_addr
 
 def test_expression_err():
     p = angr.Project('/bin/ls', auto_load_libs=False)
-    with pytest.raises(ValueError):
-        MultNode(VarNode(Register(p, 'rdi', 0x40_0016)),
-                 VarNode(Register(p, 'eax', 0x40_001e)))
+    reg1 = Register(p, 'rdi', 0x40_0016)
+    reg1.set_ref_states([p.factory.blank_state()])
+    reg2 = Register(p, 'eax', 0x40_001e)
+    reg2.set_ref_states([p.factory.blank_state()])
+
+    with pytest.raises(claripy.errors.ClaripyOperationError):
+        Mul(reg1, reg2).get_expr()

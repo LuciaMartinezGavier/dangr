@@ -1,129 +1,216 @@
 from typing import override
 from abc import ABC, abstractmethod
 from itertools import product
-
-from dangr_rt.dangr_types import AngrExpr, Address, Bool, BYTE_SIZE
+from dangr_rt.dangr_types import AngrExpr, Address, BYTE_SIZE, AngrBool, AngrArith
 from dangr_rt.variables import Variable
 
-class ExpressionNode(ABC):
+class  Expression(ABC):
+    """
+    Represents an expression. It can be boolean or arithmetic
+    """
+    def __init__(self, is_boolean) -> None:
+        self.is_boolean = is_boolean
 
     @abstractmethod
-    def create_expressions(self) -> list[AngrExpr]:
+    def get_expr(self) -> list[AngrArith]:
         """
-        From the ExpressionNode obtain an angr expression
+        Returns a list of the possible angr representations of this expression
         """
+
+    @property
+    @abstractmethod
+    def ref_addr(self) -> Address | None:
+        """
+        Returns the reference address in the binary of the expression.
+        It is calculated as the address of the atom with the last reference or
+        None if the expression is all based on constants that do not appear in the binary 
+        """
+
+    @staticmethod
+    def _unique(l: list) -> list:
+        return list(set(l))
 
     @abstractmethod
-    def expression_address(self) -> Address:
-        """
-        Get the address on which the Expression should be applied
-        """
-
-    @abstractmethod
-    def size(self) -> int:
-        """
-        Return the size (in bits) of the expression
-        """
-
-class IsMaxNode(ExpressionNode):
-    def __init__(self, expr: ExpressionNode, offset: int = 0):
-        self.expr = expr
-        self.offset = offset
-
-    @override
-    def create_expressions(self) -> list[AngrExpr]:
-        return self.expr == 2**(self.expr.size() * BYTE_SIZE) - self.offset
-
-    @override
-    def size(self) -> int:
-        return self.expr.size()
-
-    @override
-    def expression_address(self) -> Address:
-        return self.expr.expression_address()
+    def _to_str(self) -> str:
+        pass
 
     def __repr__(self) -> str:
-        return f'IsMaxNode({self.expr!r})'
+        return self._to_str()
 
-class VarNode(ExpressionNode):
-    def __init__(self, variable: Variable) -> None:
-        self.variable = variable
 
-    @override
-    def create_expressions(self) -> list[AngrExpr]:
-        return list(self.variable.angr_repr().values())
-
-    @override
-    def expression_address(self) -> Address:
-        return self.variable.ref_addr
-
-    @override
-    def size(self) -> int:
-        return self.variable.size()
-
-    def __repr__(self) -> str:
-        return f'VarNode({self.variable!r})'
-
-class BinaryOpNode(ExpressionNode):
-    def __init__(self, lh: ExpressionNode, rh: ExpressionNode):
-        if lh.size() != rh.size():
-            raise ValueError("Mismatch of expression sizes")
-
-        self.lh = lh
-        self.rh = rh
+class Binary(Expression):
+    """
+    Abstract class that represents a binary expression
+    """
+    def __init__(
+        self,
+        lhs: Expression | Variable | int | bool,
+        rhs: Expression | Variable | int | bool,
+        is_boolean: bool,
+        op: str
+    ):
+        super().__init__(is_boolean)
+        self.op: str = op
+        self.lhs = lhs
+        self.rhs = rhs
 
     @override
-    def expression_address(self) -> Address:
-        return max(self.lh.expression_address(), self.rh.expression_address())
+    @property
+    def ref_addr(self) -> Address:
+        lhs_addr = getattr(self.lhs, 'ref_addr', None)
+        rhs_addr = getattr(self.rhs, 'ref_addr', None)
+
+        if lhs_addr is None:
+            return rhs_addr
+        if rhs_addr is None:
+            return lhs_addr
+
+        return max(lhs_addr, rhs_addr)
 
     @override
-    def size(self) -> int:
-        return self.lh.size()
+    def _to_str(self) -> str:
+        return f'[{self.lhs!r} {self.op} {self.rhs!r}]'
 
-class EqualNode(BinaryOpNode):
+    def _operands_product(self) -> list[tuple[AngrExpr, AngrExpr]]:
+        lhs_exprs = getattr(self.lhs, 'get_expr', lambda: [self.lhs])()
+        rhs_exprs = getattr(self.rhs, 'get_expr', lambda: [self.rhs])()
+
+        return product(lhs_exprs, rhs_exprs)
+
+class Eq(Binary):
+    """
+    Eq(lhs, rhs) represents the constraint (lhs == rhs)
+    """
+    def __init__(
+        self,
+        lhs: Expression | Variable | int | bool,
+        rhs: Expression | Variable | int | bool
+    ):
+        super().__init__(lhs, rhs, is_boolean=True, op='==')
+
     @override
-    def create_expressions(self) -> list[AngrExpr]:
-        return [
-            lh == rh for lh, rh in # type: ignore [misc]
-            product(self.lh.create_expressions(), self.rh.create_expressions())
-        ]
+    def get_expr(self) -> list[AngrBool]:
+        return self._unique([lh == rh for lh, rh in self._operands_product()])
 
-    def __repr__(self) -> str:
-        return f'{self.lh!r} == {self.rh!r}'
+class And(Binary):
+    """
+    And(lhs, rhs) represents the constraint (lhs & rhs)
+    """
+    def __init__(self, lhs: Expression | bool, rhs: Expression | bool):
+        super().__init__(lhs, rhs, is_boolean=True, op='&')
 
-class AndNode(BinaryOpNode):
     @override
-    def create_expressions(self) -> list[AngrExpr]:
-        lh_expr = self.lh.create_expressions()
-        rh_expr = self.rh.create_expressions()
-        if not all(isinstance(sub_expr, Bool) for sub_expr in lh_expr + rh_expr):
-            raise TypeError(f"Unsupported operand type(s): {self.lh!r} + {self.rh!r}")
-        return list(set(lh & rh for lh, rh in product(lh_expr, rh_expr))) # type: ignore [operator]
+    def get_expr(self) -> list[AngrBool]:
+        return self._unique([lh & rh for lh, rh in self._operands_product()])
 
-class SumNode(BinaryOpNode):
+class Or(Binary):
+    """
+    Or(lhs, rhs) represents the constraint (lhs | rhs)
+    """
+    def __init__(self, lhs: Expression | bool, rhs: Expression | bool):
+        super().__init__(lhs, rhs, is_boolean=True, op='|')
+
     @override
-    def create_expressions(self) -> list[AngrExpr]:
-        lh_expr = self.lh.create_expressions()
-        rh_expr = self.rh.create_expressions()
+    def get_expr(self) -> list[AngrBool]:
+        return self._unique([lh | rh for lh, rh in self._operands_product()])
 
-        if any(isinstance(sub_expr, Bool) for sub_expr in lh_expr + rh_expr):
-            raise TypeError(f"Unsupported operand type(s): {self.lh!r} + {self.rh!r}")
+class Not(Expression):
+    """
+    Not(operand) represents the constraint ~operand
+    """
+    def __init__(self, operand: Expression | bool) -> None:
+        super().__init__(is_boolean=True)
+        self.operand = operand
 
-        return list(set(lh + rh for lh, rh in product(lh_expr, rh_expr))) # type: ignore [operator]
+    def _not_expr(self, expr) -> AngrArith:
+        return not expr if isinstance(expr, bool) else ~expr
 
-    def __repr__(self) -> str:
-        return f'{self.lh!r} + {self.rh!r}'
-
-class MultNode(BinaryOpNode):
     @override
-    def create_expressions(self) -> list[AngrExpr]:
-        lh_expr = self.lh.create_expressions()
-        rh_expr = self.rh.create_expressions()
+    def get_expr(self) -> list[AngrArith]:
+        return self._unique([self._not_expr(op_expr) for op_expr in self.operand.get_expr()])
 
-        if any(isinstance(sub_expr, Bool) for sub_expr in lh_expr + rh_expr):
-            raise TypeError(f"Unsupported operand type(s): {self.lh!r} * {self.rh!r}")
+    @override
+    @property
+    def ref_addr(self) -> Address | None:
+        return self.operand.ref_addr
 
-        return list(set(lh * rh for lh, rh in product(lh_expr, rh_expr))) # type: ignore [operator]
+    @override
+    def _to_str(self) -> str:
+        return f'~{self.operand!r}'
 
-    def __repr__(self) -> str:
-        return f'{self.lh!r} + {self.rh!r}'
+class Add(Binary):
+    """
+    Add(lhs, rhs) represents the operation lhs + rhs
+    """
+    def __init__(self, lhs: Expression | Variable | int, rhs: Expression | Variable | int) -> None:
+        super().__init__(lhs, rhs, is_boolean=False, op='+')
+
+    @override
+    def get_expr(self) -> list[AngrArith]:
+        return self._unique([lh + rh for lh, rh in self._operands_product()])
+
+class Mul(Binary):
+    """
+    Mul(lhs, rhs) represents the operation lhs + rhs
+    """
+    def __init__(self, lhs: Expression | Variable | int, rhs: Expression | Variable | int) -> None:
+        super().__init__(lhs, rhs, is_boolean=False, op='*')
+
+    @override
+    def get_expr(self) -> list[AngrArith]:
+        return self._unique([lh * rh for lh, rh in self._operands_product()])
+
+class Sub(Binary):
+    """
+    Sub(lhs, rhs) represents the operation lhs - rhs
+    """
+    def __init__(self, lhs: Expression | Variable | int, rhs: Expression | Variable | int) -> None:
+        super().__init__(lhs, rhs, is_boolean=False, op='-')
+
+    @override
+    def get_expr(self) -> list[AngrArith]:
+        return self._unique([lh - rh for lh, rh in self._operands_product()])
+
+class Div(Binary):
+    """
+    Div(lhs, rhs) represents the operation lhs // rhs (integer division)
+    """
+    def __init__(self, lhs: Expression | Variable | int, rhs: Expression | Variable | int) -> None:
+        super().__init__(lhs, rhs, is_boolean=False, op='//')
+
+    @override
+    def get_expr(self) -> list[AngrArith]:
+        return self._unique([lh // rh for lh, rh in self._operands_product()])
+
+class IsMax(Expression):
+    """
+    IsMax(operand) represents the constraint operand == <operand max value>
+    """
+    def __init__(self, operand: Expression | int):
+        super().__init__(is_boolean=True)
+        self.operand = operand
+
+    def _size(self, angr_exp: AngrArith) -> int:
+        if isinstance(angr_exp, int) or isinstance(angr_exp, bool):
+            raise ValueError("Can't calculate the max value of an int or bool", angr_exp)
+
+        return angr_exp.size()
+
+    def _max_value(self, angr_exp: AngrArith) -> int:
+        max_value = 2**self._size(angr_exp)*BYTE_SIZE
+        return max_value
+
+    @override
+    def get_expr(self) -> list[AngrBool]:
+        return self._unique([
+            exp == self._max_value(exp) for exp in self.operand.get_expr()
+        ])
+
+    @override
+    @property
+    def ref_addr(self) -> Address:
+        return self.operand.ref_addr
+
+    @override
+    def _to_str(self) -> str:
+        return f'IsMax({self.operand!r})'

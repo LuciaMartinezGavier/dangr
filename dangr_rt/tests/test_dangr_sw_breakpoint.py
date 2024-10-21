@@ -8,7 +8,7 @@ from tests.conftest import BinaryBasedTestCase,fullpath
 from dangr_rt.dangr_analysis import DangrAnalysis
 from dangr_rt.jasm_findings import CaptureInfo, StructuralFinding
 from dangr_rt.variables import Deref, Variable, Register, Literal
-from dangr_rt.expression import EqualNode, VarNode
+from dangr_rt.expression import Eq
 from dangr_rt.simulator import ConcreteState
 
 DANGR_DIR = 'dangr_analysis'
@@ -164,15 +164,8 @@ def test_software_breakpoint_detection(test_case):
         list_concrete_values = dangr.concretize_fn_args()
         assert test_case.expected_args(dangr.project, list_concrete_values)
 
-        dangr.add_constraint(EqualNode(lh=VarNode(y), rh=VarNode(z)))
-        dangr.add_constraint(
-            EqualNode(
-                VarNode(dx),
-                VarNode(
-                    Literal(project=dx.project, value=0xfa1e0ff3, size=dx.size())
-                )
-            )
-        )
+        dangr.add_constraint(Eq(y, z))
+        dangr.add_constraint(Eq(dx, 0xfa1e0ff3))
 
         found_states = dangr.simulate(cmp_address, list_concrete_values)
         assert found_states
