@@ -1,0 +1,51 @@
+from dangr_rt.dangr_analysis import DangrAnalysis
+from dangr_rt.jasm_findings import structural_filter
+from dangr_rt.expression import *
+from dangr_rt.dangr_types import Argument
+
+JASM_PATTERN: dict = {{ jasm_rule }}
+
+def detect(binary_path: str, max_depth: int) -> bool:
+    s_findings = structural_filter(binary_path, JASM_PATTERN)
+    dangr = DangrAnalysis(binary_path, max_depth)
+    vf = dangr.get_variable_factory()
+
+    for s_finding in s_findings:
+        dangr.set_finding(s_finding)
+
+        {%- for addr_capture in address_captures %}
+        {{ addr_capture }} = s_finding.address_captures["{{addr_capture}}"]
+        {%- endfor %}
+        {%- for assign in assigns %}
+        {{ assign }}
+        {%- endfor %}
+
+        dangr.add_variables([{{ variables | join(', ') }}])
+
+        {%- for dep in deps %}
+        if not {{dep}}:
+            break
+        {%- endfor %}
+
+        {%- for c in constraints %}
+        dangr.add_constraint({{ c }})
+        {%- endfor %}
+
+        {%- if config.solve_arguments %}
+        concrete_values = dangr.concretize_fn_args()
+        found_states = dangr.simulate({{ simulation_target }}, concrete_values)
+        {%- else %}
+        found_states = dangr.simulate({{ simulation_target }})
+        {%- endif %}
+        if not found_states:
+            return False
+
+        {%- if satifiable %}
+        if dangr.satisfiable(found_states):
+        {%- else %}
+        if not dangr.satisfiable(found_states):
+        {%- endif %}
+            print("{{ msg }}")
+            return True
+
+    return False

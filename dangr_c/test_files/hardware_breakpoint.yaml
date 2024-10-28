@@ -1,0 +1,17 @@
+---
+config:
+  solve_arguments: true
+given: # TODO: allow `given-file` instead of `given`
+  pattern:
+    - call:
+      - "@any"
+      - "<ptrace@plt>"
+      address-capture: ptrace_call
+where:
+  - a1 = arg(1, ptrace_call, 4)
+  - a3 = arg(3, ptrace_call, 4)
+such-that:
+  - a1 = 3    # TODO: explain
+  - a3 = 848  # TODO: explain
+report:
+  "Debugging evation through hardware breakpoint detection"
