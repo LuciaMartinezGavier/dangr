@@ -14,4 +14,4 @@ such-that:
   - a1 = 3    # TODO: explain
   - a3 = 848  # TODO: explain
 report:
-  "Debugging evation through hardware breakpoint detection"
+  "Debugging evasion through hardware breakpoint detection"

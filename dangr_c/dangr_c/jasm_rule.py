@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 JasmRule = dict
-HARDWARE_BREAKPOINT_RULE = {'pattern': [{'call': {'l': ['@any', '<ptrace@plt>'], 'address-capture': 'ptrace_call'}}]}
 
 class JasmRuleEditor:
     def __init__(self, rule: JasmRule):
@@ -10,7 +9,7 @@ class JasmRuleEditor:
     def get_rule(self) -> JasmRule:
         """
         Return the rule.
-        Jasm should be able to process this dict afterwards 
+        Jasm should be able to process this dict afterwards
         """
         return self.rule
 
@@ -34,17 +33,13 @@ class JasmRuleEditor:
         Returns a list with all the variable names in the pattern
         A variable captures a register or literal for example `$any-var`
         """
-        match self.rule:
-            case HARDWARE_BREAKPOINT_RULE:
-                return []
+        return []
 
     def address_captures(self) -> list[str]:
         """
         Returns a list with all the address captures names in the pattern
         """
-        match self.rule:
-            case HARDWARE_BREAKPOINT_RULE:
-                return ['ptrace_call', '_target']
+        return ['ptrace_call', '_target']
 
 @dataclass
 class VariableMatch:
@@ -63,14 +58,16 @@ class JasmMatch:
     def variables(self) -> list[VariableMatch]:
         """
         Returns a dict with all the variables matched
-        Including 
+        Including
         - The variable name
         - The register/literal matched
         - The address capture in the instruction if it exists
         """
+        return []
 
     def address_captures(self) -> list[AddressMatch]:
         """
         Returns a list with all the address captures.
         The keys are the anchore's names and the value is the match
         """
+        return []

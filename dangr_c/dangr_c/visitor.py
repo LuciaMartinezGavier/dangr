@@ -1,19 +1,20 @@
 from abc import ABC
 from enum import Enum, auto
+from dangr_c.expr_parser import NodeName, Atom, Parent, Node
 
 class ASTVisitor(ABC):
     """
-    Base class for AST visitors. 
+    Base class for AST visitors.
     Defines generic visit method and specific methods for each node type.
     """
-    def _children_names(self, node):
+    def _children_names(self, node: Parent) -> list[NodeName]:
         return list(node.keys())
 
-    def visit(self, node):
+    def visit(self, node: Node) -> None:
         """
         The main visit method dispatches to specific node visit methods based on node type.
         """
-        if isinstance(node, str):
+        if isinstance(node, Atom):
             visit_method = getattr(self, "visit_atom", self.generic_visit)
             visit_method(node)
             return
@@ -22,9 +23,8 @@ class ASTVisitor(ABC):
         for child_name in children_names:
             visit_method = getattr(self, f"visit_{child_name}", self.generic_visit)
             visit_method(node[child_name])
-        return
 
-    def generic_visit(self, node):
+    def generic_visit(self, node: Node) -> None:
         """
         Fallback visit method for unhandled node types.
         """
@@ -40,22 +40,28 @@ class ExprType(Enum):
 
 
 class WhereExprVisitor(ASTVisitor):
-    def __init__(self, reverse: bool | None = None):
+    def __init__(self, reverse: bool | None = None) -> None:
         self.reverse = reverse
         self.formula: str = ''
         self.expr_type: ExprType | None = None
 
-    def visit_where(self, node):
+    def visit_atom(self, node: Atom) -> None:
+        if node == '_anyarg':
+            self.formula += '_arg'
+        else:
+            self.formula += node
+
+    def visit_where(self, node: Parent) -> None:
         self.formula = ''
         self.visit(node)
 
-    def visit_asgn(self, node):
+    def visit_asgn(self, node: Parent) -> None:
         self.expr_type = ExprType.ASSIGN
         self.visit(node['lv'])
         self.formula += ' = '
         self.visit(node['rv'])
 
-    def visit_arg(self, node):
+    def visit_arg(self, node: Parent) -> None:
         self.formula += 'vf.create_from_argument(Argument('
         self.visit(node['idx'])
         self.formula += ', '
@@ -64,112 +70,108 @@ class WhereExprVisitor(ASTVisitor):
         self.visit(node['size'])
         self.formula += '))'
 
-    def visit_deref(self, node):
+    def visit_deref(self, node: Parent) -> None:
         self.formula += 'Deref('
         self.visit(node['var'])
         if self.reverse:
             self.formula += ', reverse=True'
         self.formula += ')'
 
-    def visit_atom(self, node):
-        if node == '_anyarg':
-            self.formula += '_arg'
-        else:
-            self.formula += node
-
-
-    def visit_not(self, node):
+    def visit_not(self, node: Parent) -> None:
         self.formula += '(not '
         self.visit(node)
         self.formula += ')'
 
-    def visit_or(self, node):
+    def visit_or(self, node: Parent) -> None:
         self.formula += '('
         self.visit(node['lft'])
         self.formula += ' or '
         self.visit(node['rgt'])
         self.formula += ')'
 
-    def visit_and(self, node):
+    def visit_and(self, node: Parent) -> None:
         self.formula += '('
         self.visit(node['lft'])
         self.formula += ' and '
         self.visit(node['rgt'])
         self.formula += ')'
 
-    def visit_dep(self, node):
+    def visit_dep(self, node: Parent) -> None:
         self.expr_type = ExprType.DEP_EXPR
-        current_formula = self.formula
 
-        self.formula = ''
-        self.visit(node['src'])
-        src = self.formula
+        src = self._dep_build_subformula(node['src'])
+        trg = self._dep_build_subformula(node['trg'])
+        self._dep_check_if_valid(src, trg)
 
-        self.formula = ''
-        self.visit(node['trg'])
-        trg = self.formula
-
-        self.formula = current_formula
         basic_dep = f'dangr.depends({src}, {trg})'
+        if src == '_arg' or trg == '_arg':
+            self.formula += f'some({basic_dep} for _arg in dangr.get_fn_args())'
+            return
 
+        self.formula += basic_dep
+
+    def _dep_build_subformula(self, node: Node) -> str:
+        old_formula = self.formula
+        self.formula = ''
+        self.visit(node)
+        formula = self.formula
+        self.formula = old_formula
+        return formula
+
+    def _dep_check_if_valid(self, src, trg) -> None:
         if src == '_arg' and trg == '_arg':
             raise ValueError(
                 'Invalid dependency "(_anyarg -> _anyarg)": '
                 '_anyarg should occur in only one side of dependency expression'
             )
-        elif src == '_arg' or trg == '_arg':
-            self.formula += f'some({basic_dep} for _arg in dangr.get_fn_args())'
-        else:
-            self.formula += basic_dep
-
 
 class SuchThatExprVisitor(ASTVisitor):
-    def __init__(self):
+    def __init__(self) -> None:
         self.formula = ''
         self.expr_type: ExprType | None = None
 
-    def _visit_binary_exp(self, node, node_name):
+    def visit_atom(self, node: Atom) -> None:
+        self.formula += node
+
+    def _visit_binary_exp(self, node: Parent, node_name: NodeName) -> None:
         self.formula += node_name + '('
         self.visit(node['lft'])
         self.formula += ', '
         self.visit(node['rgt'])
         self.formula += ')'
 
-    def visit_such_that(self, node) -> None:
+    def visit_such_that(self, node: Parent) -> None:
         self.expr_type = ExprType.CONSTR
         self.formula = ''
         self.visit(node)
 
-    def visit_upper_unbounded_ptr(self, node) -> None:
+    def visit_upper_unbounded_ptr(self, node: Parent) -> None:
         self.formula += 'IsMaxPtr('
         self.visit(node['bounded_exp'])
         self.formula += ')'
 
-    def visit_add(self, node) -> None:
+    def visit_add(self, node: Parent) -> None:
         self._visit_binary_exp(node, 'Add')
 
-    def visit_mul(self, node) -> None:
+    def visit_mul(self, node: Parent) -> None:
         self._visit_binary_exp(node, 'Mul')
 
-    def visit_sub(self, node) -> None:
+    def visit_sub(self, node: Parent) -> None:
         self._visit_binary_exp(node, 'Sub')
 
-    def visit_div(self, node) -> None:
+    def visit_div(self, node: Parent) -> None:
         self._visit_binary_exp(node, 'Div')
 
-    def visit_atom(self, node) -> None:
-        self.formula += node
-
-    def visit_eq(self, node) -> None:
+    def visit_eq(self, node: Parent) -> None:
         self._visit_binary_exp(node, 'Eq')
 
-    def visit_not(self, node):
+    def visit_not(self, node: Parent) -> None:
         self.formula += 'Not('
         self.visit(node['exp'])
         self.formula += ')'
 
-    def visit_or(self, node):
+    def visit_or(self, node: Parent) -> None:
         self._visit_binary_exp(node, 'Or')
 
-    def visit_and(self, node):
+    def visit_and(self, node: Parent) -> None:
         self._visit_binary_exp(node, 'And')
