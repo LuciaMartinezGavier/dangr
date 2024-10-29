@@ -21,7 +21,7 @@ META: Final[dict] = {{ meta | safe }}
 
 DetectionResult = namedtuple("DetectionResult", ["detected", "message"])
 
-def detect(binary_path: str, max_depth: int) -> bool:
+def detect(binary_path: str, max_depth: int | None = None) -> bool:
     s_findings = structural_filter(binary_path, JASM_PATTERN)
     dangr = DangrAnalysis(binary_path, max_depth)
     vf = dangr.get_variable_factory()
@@ -68,7 +68,7 @@ def detect(binary_path: str, max_depth: int) -> bool:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run binary analysis with the detect function.")
     parser.add_argument("-b", "--binary-path", type=str, required=True, help="Path to binary to analyze.")
-    parser.add_argument("-d", "--max-depth", type=int, required=True, help="Maximum depth for backward execution.")
+    parser.add_argument("-d", "--max-depth", type=int, default=None, help="Maximum depth for backward execution.")
     args = parser.parse_args()
 
     result = detect(args.binary_path, args.max_depth)
