@@ -13,11 +13,8 @@ class DangrGenerator:
 
         editor.add_anchore('_target', pattern_idx=-1)
         self.intermediate_repr['address_captures'] = editor.address_captures()
-        self.intermediate_repr['variables'] = editor.variables() + self._get_assigned_variables()
+        self.intermediate_repr['variables'] += editor.variables()
         self.intermediate_repr['jasm_rule'] = editor.get_rule()
-
-    def _get_assigned_variables(self) -> list[str]:
-        return [assign.split(' = ', 1)[0] for assign in self.intermediate_repr['assigns']]
 
     def generate_code(self) -> str:
         """
@@ -26,7 +23,7 @@ class DangrGenerator:
         :param parsed_rules: Parsed code structure containing imports, functions, etc.
         :return: The generated Python code as a string.
         """
-        env = Environment(loader=FileSystemLoader(''))
+        env = Environment(loader=FileSystemLoader(''), autoescape=True)
         template = env.get_template('dangr_template.j2')
         rendered = template.render(self.intermediate_repr)
 

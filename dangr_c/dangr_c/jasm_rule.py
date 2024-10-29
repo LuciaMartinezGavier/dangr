@@ -13,7 +13,7 @@ class JasmRuleEditor:
         """
         return self.rule
 
-    def add_anchore(self, anchor_name, pattern_idx) -> None:
+    def add_anchore(self, anchor_name: str, pattern_idx: int) -> None:
         """
         Adds an anchore capture in the rule, in the pattern idx.
         The indexes are python-like, for example, -1 is valid.

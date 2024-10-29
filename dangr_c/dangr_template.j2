@@ -7,6 +7,7 @@
 # through symbolic execution and constraint solving.
 """
 
+from typing import Final
 from collections import namedtuple
 import sys
 import argparse
@@ -15,8 +16,8 @@ from dangr_rt.jasm_findings import structural_filter
 from dangr_rt.expression import *
 from dangr_rt.dangr_types import Argument
 
-JASM_PATTERN: dict = {{ jasm_rule }}
-META: dict = {{ meta }}
+JASM_PATTERN: Final[dict] = {{ jasm_rule | safe }}
+META: Final[dict] = {{ meta | safe }}
 
 DetectionResult = namedtuple("DetectionResult", ["detected", "message"])
 
@@ -29,7 +30,7 @@ def detect(binary_path: str, max_depth: int) -> bool:
         dangr.set_finding(s_finding)
 
         {%- for addr_capture in address_captures %}
-        {{ addr_capture }} = s_finding.address_captures["{{addr_capture}}"]
+        {{ addr_capture }} = s_finding.address_captures["{{ addr_capture }}"]
         {%- endfor %}
         {%- for assign in assigns %}
         {{ assign }}
@@ -38,7 +39,7 @@ def detect(binary_path: str, max_depth: int) -> bool:
         dangr.add_variables([{{ variables | join(', ') }}])
 
         {%- for dep in deps %}
-        if not {{dep}}:
+        if not {{ dep }}:
             break
         {%- endfor %}
 

@@ -7,6 +7,7 @@
 # through symbolic execution and constraint solving.
 """
 
+from typing import Final
 from collections import namedtuple
 import sys
 import argparse
@@ -15,13 +16,13 @@ from dangr_rt.jasm_findings import structural_filter
 from dangr_rt.expression import *
 from dangr_rt.dangr_types import Argument
 
-JASM_PATTERN: dict = {
+JASM_PATTERN: Final[dict] = {
     'pattern': [{
         'call': ['@any', '<ptrace@plt>'],
         'address-capture': 'ptrace_call'
     }]
 }
-META: dict = {}
+META: Final[dict] = {}
 
 DetectionResult = namedtuple("DetectionResult", ["detected", "message"])
 

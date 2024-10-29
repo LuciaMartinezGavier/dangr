@@ -44,6 +44,7 @@ class WhereExprVisitor(ASTVisitor):
         self.reverse = reverse
         self.formula: str = ''
         self.expr_type: ExprType | None = None
+        self.dst_variable: str | None = None
 
     def visit_atom(self, node: Atom) -> None:
         if node == '_anyarg':
@@ -57,8 +58,9 @@ class WhereExprVisitor(ASTVisitor):
 
     def visit_asgn(self, node: Parent) -> None:
         self.expr_type = ExprType.ASSIGN
-        self.visit(node['lv'])
-        self.formula += ' = '
+        lv = self._build_subformula(node['lv'])
+        self.dst_variable = lv
+        self.formula += f'{lv} = '
         self.visit(node['rv'])
 
     def visit_arg(self, node: Parent) -> None:
@@ -99,8 +101,8 @@ class WhereExprVisitor(ASTVisitor):
     def visit_dep(self, node: Parent) -> None:
         self.expr_type = ExprType.DEP_EXPR
 
-        src = self._dep_build_subformula(node['src'])
-        trg = self._dep_build_subformula(node['trg'])
+        src = self._build_subformula(node['src'])
+        trg = self._build_subformula(node['trg'])
         self._dep_check_if_valid(src, trg)
 
         basic_dep = f'dangr.depends({src}, {trg})'
@@ -110,7 +112,7 @@ class WhereExprVisitor(ASTVisitor):
 
         self.formula += basic_dep
 
-    def _dep_build_subformula(self, node: Node) -> str:
+    def _build_subformula(self, node: Node) -> str:
         old_formula = self.formula
         self.formula = ''
         self.visit(node)
@@ -118,7 +120,7 @@ class WhereExprVisitor(ASTVisitor):
         self.formula = old_formula
         return formula
 
-    def _dep_check_if_valid(self, src, trg) -> None:
+    def _dep_check_if_valid(self, src: Atom, trg: Atom) -> None:
         if src == '_arg' and trg == '_arg':
             raise ValueError(
                 'Invalid dependency "(_anyarg -> _anyarg)": '

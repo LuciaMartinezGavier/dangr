@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 from cerberus import Validator # type: ignore
 from pyparsing.exceptions import ParseException
 import yaml
@@ -33,12 +33,13 @@ class DangrParser:
         self.ast: dict[str, Any] = {}
 
         self.assigns: list[str] = []
+        self.variables: list[str] = []
         self.constraints: list[str] = []
         self.deps: list[str] = []
 
     def load_yaml(self) -> dict:
         with open(self.rule_path, 'r', encoding='utf-8') as file:
-            data = yaml.safe_load(file)
+            data = cast(dict, yaml.safe_load(file))
         return data
 
     def parsing_error(self, msg: str) -> None:
@@ -61,16 +62,17 @@ class DangrParser:
             if visitor.expr_type is None:
                 raise ValueError(f"Expression {exp} doesn't have an ExprType")
 
-            self._store_expression(visitor.expr_type, visitor.formula)
+            self._store_expression(visitor)
 
-    def _store_expression(self, expr_type: ExprType | None, formula: str) -> None:
-        match expr_type:
+    def _store_expression(self, visitor) -> None:
+        match visitor.expr_type:
             case ExprType.ASSIGN:
-                self.assigns.append(formula)
+                self.assigns.append(visitor.formula)
+                self.variables.append(visitor.dst_variable)
             case ExprType.DEP_EXPR:
-                self.deps.append(formula)
+                self.deps.append(visitor.formula)
             case ExprType.CONSTR:
-                self.constraints.append(formula)
+                self.constraints.append(visitor.formula)
 
     def parse_where(self) -> None:
         expressions = self.ast['where']
@@ -98,6 +100,7 @@ class DangrParser:
             'config': self.ast['config'],
             'jasm_rule': self.ast['given'],
             'assigns': self.assigns,
+            'variables': self.variables,
             'deps': self.deps,
             'constraints': self.constraints,
             'satisfiable': self.ast['then'],

@@ -18,6 +18,7 @@ GENERATION_TESTS = [
         'assigns': [
             'a1 = vf.create_from_argument(Argument(1, ptrace_call, 4))',
             'a3 = vf.create_from_argument(Argument(3, ptrace_call, 4))'],
+        'variables': ['a1', 'a3'],
         'deps': [],
         'constraints': ['Eq(a1, 3)', 'Eq(a3, 848)'],
         'satisfiable': True,
