@@ -63,13 +63,13 @@ The posible arguments are:
 - `solve_arguments` (`bool`): By default is `False`. If `True` the arguments of the function will be concretized before the analysis. Note that the analysis is more complete but the performance might decreace.
 - `little_endian` (`bool`): By default it follows the architecture. If `true` the memory contents will be reversed.
 
-## given
+## 3. given
 This section defines the **structural pattern**, it is the first filter and fastest part of the analysis.
 
 See [JASM](https://github.com/JukMR/JASM) for the syntax.
 
 
-## where
+## 4. where
 
 List of `<where-expr>`.
 A where expression can be an assignment such as `foo = *ptr` or `foo = bar` or `foo = arg(1, call_addr, 4)`. Namely,
@@ -116,7 +116,7 @@ All findings that don't satisfy the dependency expressions will be filtered
           | not <dep-expr>
 ```
 
-## shuch-that
+## 5. shuch-that
 List of `<such-that-expr>`. A such-that expression can be any logical expression that uses literals or variables
 declared in the where or given sections.
 
@@ -140,7 +140,7 @@ The state (or states) for each constraint is the state where the last variable i
 
 ```
 
-## then
+## 6. then
 The then section is just a boolean that indicates if the analysis is supposed to find a
 satisfiable state or not.
 
@@ -149,7 +149,7 @@ satisfiable state or not.
 ```
 By default it's True.
 
-## report
+## 7. report
 Here a message is set, so if the pattern is found in the binary this message is returned. 
 
 ```
