@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-JasmRule = dict
+JasmRule = dict[str, 'JasmRule'] | list['JasmRule'] | str
 
 class JasmRuleEditor:
     def __init__(self, rule: JasmRule):

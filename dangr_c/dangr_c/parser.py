@@ -37,9 +37,9 @@ class DangrParser:
         self.constraints: list[str] = []
         self.deps: list[str] = []
 
-    def load_yaml(self) -> dict:
+    def load_yaml(self) -> dict[str, Any]:
         with open(self.rule_path, 'r', encoding='utf-8') as file:
-            data = cast(dict, yaml.safe_load(file))
+            data = cast(dict[str, Any], yaml.safe_load(file))
         return data
 
     def parsing_error(self, msg: str) -> None:
@@ -64,13 +64,17 @@ class DangrParser:
 
             self._store_expression(visitor)
 
-    def _store_expression(self, visitor) -> None:
+    def _store_expression(self, visitor: WhereExprVisitor | SuchThatExprVisitor) -> None:
         match visitor.expr_type:
             case ExprType.ASSIGN:
                 self.assigns.append(visitor.formula)
-                self.variables.append(visitor.dst_variable)
+
+                dst_variable = getattr(visitor, 'dst_variable')
+                self.variables.append(dst_variable)
+
             case ExprType.DEP_EXPR:
                 self.deps.append(visitor.formula)
+
             case ExprType.CONSTR:
                 self.constraints.append(visitor.formula)
 

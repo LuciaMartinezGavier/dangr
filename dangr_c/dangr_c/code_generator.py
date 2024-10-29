@@ -1,14 +1,17 @@
 from typing import cast
 import yapf # type: ignore
 from jinja2 import Environment, FileSystemLoader
-from dangr_c.jasm_rule import JasmRuleEditor
+from dangr_c.jasm_rule import JasmRuleEditor, JasmRule
 
 class DangrGenerator:
-    def __init__(self, intermediate_repr: dict) -> None:
+    def __init__(
+        self,
+        intermediate_repr: dict # type: ignore [type-arg]
+    ) -> None:
         self.intermediate_repr = intermediate_repr
         self.intermediate_repr['simulation_target'] = '_target'
 
-        jasm_rule = cast(dict, intermediate_repr['jasm_rule'])
+        jasm_rule = cast(JasmRule, intermediate_repr['jasm_rule'])
         editor = JasmRuleEditor(jasm_rule)
 
         editor.add_anchore('_target', pattern_idx=-1)

@@ -10,6 +10,8 @@ Atom = str
 Parent = dict[NodeName, 'Node']
 Node = Atom | Parent
 
+_InternalReprNode = str | list['_InternalReprNode'] | dict[str, '_InternalReprNode']
+
 class ExprParser:
     """
     Expression parser
@@ -41,16 +43,16 @@ class ExprParser:
     def expr(self) -> ParserElement:
         pass
 
-    def _to_dict(self, res: dict | ParseResults) -> dict | list:
+    def _to_dict(self, res: dict[str, _InternalReprNode] | ParseResults) -> _InternalReprNode:
         if isinstance(res, dict):
             return res
 
         name = res.get_name()
         if name:
-            return {res.get_name(): res.as_dict()}
+            return {str(res.get_name()): res.as_dict()}
         return res.as_list()
 
-    def _infix_dict(self, tokens: ParseResults) -> dict:
+    def _infix_dict(self, tokens: ParseResults) -> _InternalReprNode:
         parse_result = tokens[0]
         if len(parse_result) == 2:
             return { parse_result[0]: {
@@ -73,7 +75,7 @@ class ExprParser:
         )
         return logic_expr
 
-    def _remove_unnecesary_lists(self, data: dict | list | str) -> Node:
+    def _remove_unnecesary_lists(self, data: _InternalReprNode) -> Node:
         match data:
             case dict() as d:
                 return self._remove_unnecesary_lists_in_dict(d)
@@ -84,7 +86,7 @@ class ExprParser:
             case _:
                 raise ValueError(f"Malformed AST {data}")
 
-    def _remove_unnecesary_lists_in_dict(self, data: dict) -> Node:
+    def _remove_unnecesary_lists_in_dict(self, data: dict[str, _InternalReprNode]) -> Node:
         return {k: self._remove_unnecesary_lists(v) for k, v in data.items()}
 
     def parse(self, raw_string: str) -> Node:
