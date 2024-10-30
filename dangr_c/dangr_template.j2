@@ -15,15 +15,16 @@ from dangr_rt.dangr_analysis import DangrAnalysis
 from dangr_rt.jasm_findings import structural_filter
 from dangr_rt.expression import *
 from dangr_rt.dangr_types import Argument
+from dangr_rt.dangr_argparse import DangrArgparse
 
 JASM_PATTERN: Final[dict] = {{ jasm_rule | safe }}
 META: Final[dict] = {{ meta | safe }}
 
 DetectionResult = namedtuple("DetectionResult", ["detected", "message"])
 
-def detect(binary_path: str, max_depth: int | None = None) -> bool:
+def detect(binary_path: str, config: dict) -> bool:
     s_findings = structural_filter(binary_path, JASM_PATTERN)
-    dangr = DangrAnalysis(binary_path, max_depth)
+    dangr = DangrAnalysis(binary_path, config)
     vf = dangr.get_variable_factory()
 
     for s_finding in s_findings:
@@ -66,12 +67,12 @@ def detect(binary_path: str, max_depth: int | None = None) -> bool:
     return DetectionResult(False, None)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run binary analysis with the detect function.")
-    parser.add_argument("-b", "--binary-path", type=str, required=True, help="Path to binary to analyze.")
-    parser.add_argument("-d", "--max-depth", type=int, default=None, help="Maximum depth for backward execution.")
-    args = parser.parse_args()
 
-    result = detect(args.binary_path, args.max_depth)
+    parser = DangrArgparse("Run binary analysis and detect a beheavorial pattern")
+    parser.add_argument("binary_path", type=str, help="Path to binary to analyze.")
+    args = parser.parse_args()
+    result = detect(args.binary_path, args.config)
+
     if result.detected:
         print(result.message)
         sys.exit(1)
