@@ -174,25 +174,34 @@ class BackwardSimulation(Simulator):
         it returns the concrete values of the registers in that path.
         """
         initial_node = rec_ctx.path[-1]
-
         state = self._simulate_slice(self._node_addr(initial_node), target_node, rec_ctx.path)
 
         if not state:
-            if rec_ctx.backup_state:
-                self.states_found.append(rec_ctx.backup_state)
+            self._handle_no_found_state(rec_ctx)
             return
 
-        for var in self.variables:
-            var.set_ref_states([state])
+        self._set_state_to_vars(state)
 
-        if all(var.is_concrete() for var in self.variables) or\
-           rec_ctx.current_depth >= self.max_depth:
+        if self._rec_simulation_stop(rec_ctx):
             self.states_found.append(state)
             return
 
         for pred in list(self.cfg.model.get_predecessors(initial_node)):
             new_rec_ctx = RecursiveCtx(rec_ctx.current_depth + 1, state, rec_ctx.path + [pred])
             self._rec_simulate(target_node, new_rec_ctx)
+
+    def _handle_no_found_state(self, rec_ctx: RecursiveCtx) -> None:
+        if rec_ctx.backup_state:
+            self.states_found.append(rec_ctx.backup_state)
+
+    def _set_state_to_vars(self, state: angr.SimState) -> None:
+        for var in self.variables:
+            var.set_ref_states([state])
+
+    def _rec_simulation_stop(self, rec_ctx: RecursiveCtx) -> bool:
+        happy_stop =  all(var.is_concrete() for var in self.variables)
+        forced_stop = rec_ctx.current_depth >= self.max_depth
+        return happy_stop or forced_stop
 
     def _simulate_slice(
         self,

@@ -24,14 +24,15 @@ class SimulatorTestCase(BinaryBasedTestCase):
 FOO: Final = 539
 BAR: Final = 324
 MEM: Final = 0xc0ca_c01a
-ARR: Final = [5, 8, 2, 6, 3]
+ARR: Final = [3,6,2,8,5]
 
 context = [10]
 
 def array_to_hex(arr):
     hex_string = "0x"
     for num in arr:
-        hex_string += f"{num:02x}_00_00_00_"
+        hex_string += f"00_00_00_{num:02x}_"
+
     return int(hex_string.rstrip('_'), 16)
 
 

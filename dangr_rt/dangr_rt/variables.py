@@ -15,6 +15,7 @@ from abc import abstractmethod, ABC
 from typing import override, Final
 import angr
 import claripy
+import archinfo
 
 from dangr_rt.dangr_types import Address, AngrExpr, BYTE_SIZE
 
@@ -191,24 +192,37 @@ class Register(Variable):
 class Memory(Variable):
     """
     A class representing a memory location in symbolic execution.
-
-    Attributes:
-        addr (Address): The memory address.
-        size (int): The size of the memory region.
     """
-    def __init__(self, project: angr.Project, addr: int, size: int, ref_addr: Address) -> None:
+    def __init__( # pylint: disable=(too-many-arguments)
+        self,
+        project: angr.Project,
+        addr: int,
+        size: int,
+        ref_addr: Address, *,
+        reverse: bool | None = None
+    ) -> None:
+
         super().__init__(project, ref_addr)
         self._size: Final = size
         self.addr: Final = addr
+        self.reverse = reverse if reverse is not None else self._default_reverse()
+
+    def _default_reverse(self) -> bool:
+        return self.project.arch.memory_endness == archinfo.Endness.LE
 
     @override
     def angr_repr(self) -> dict[angr.SimState, claripy.ast.bv.BV]:
         self._check_ref_state_is_set()
-        # TODO: reverse if necesary
-        return {
-            state: state.memory.load(self.addr, self.size())
-            for state in self.reference_states # type: ignore[union-attr]
-        }
+        angr_repr = {}
+        for state in self.reference_states: # type: ignore[union-attr]
+
+            memory = state.memory.load(self.addr, self.size())
+            if self.reverse:
+                memory = memory.reversed
+
+            angr_repr[state] = memory
+
+        return angr_repr
 
     @override
     def set_ref_states(self, states: list[angr.SimState]) -> None:
@@ -217,8 +231,12 @@ class Memory(Variable):
     @override
     def set_value(self, value: int) -> None:
         self._check_ref_state_is_set()
+        bvv_value = claripy.BVV(value, self.size()*BYTE_SIZE)
+        if self.reverse:
+            bvv_value = bvv_value.reversed
+
         for state in self.reference_states: # type: ignore[union-attr]
-            state.memory.store(self.addr, value, self.size())
+            state.memory.store(self.addr, bvv_value, self.size())
 
     @override
     def size(self) -> int:
@@ -301,19 +319,21 @@ class Deref(Variable):
         self,
         base: Register,
         idx: int = 0,
-        reverse: bool = False
+        reverse: bool | None = None
     ) -> None:
 
         super().__init__(base.project, base.ref_addr)
         self.base: Final = base
         self.idx: Final = idx
-        self.reverse: Final = reverse
+        self.reverse: Final[bool] = reverse if reverse is not None else self._default_reverse()
+
+    def _default_reverse(self) -> bool:
+        return self.project.arch.memory_endness == archinfo.Endness.LE
 
     def _load_mem(self, state: angr.SimState) -> claripy.ast.bv.BV:
         mem = state.memory.load(self.base.angr_repr()[state], int(self.size()))
         if self.reverse:
             return mem.reversed
-
         return mem
 
     @override
@@ -332,11 +352,17 @@ class Deref(Variable):
     @override
     def set_value(self, value: int) -> None:
         self._check_ref_state_is_set()
+        bvv_value = claripy.BVV(value, self.size()*BYTE_SIZE)
+        if self.reverse:
+            bvv_value = bvv_value.reversed
+
         for state in self.reference_states: # type: ignore[union-attr]
-            state.memory.store(self.base.angr_repr()[state], value, int(self.size()))
+            state.memory.store(
+                self.base.angr_repr()[state],
+                bvv_value, int(self.size()),
+            )
 
-
-    def memory_contents(self, state: angr.SimState, reverse: bool) -> list[AngrExpr]:
+    def memory_contents(self, state: angr.SimState) -> list[AngrExpr]:
         """
         Evaluates the memory referenced by the `self.base` register
         in the given `state` 
@@ -348,7 +374,7 @@ class Deref(Variable):
         memory_contents: list[AngrExpr] = []
         for der_state in self.reference_states: # type: ignore[union-attr]
             memory = state.memory.load(self.base.angr_repr()[der_state], self.size())
-            if reverse:
+            if self.reverse:
                 memory = memory.reversed
             memory_contents.append(memory)
         return memory_contents

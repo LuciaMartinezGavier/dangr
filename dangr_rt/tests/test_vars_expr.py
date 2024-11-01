@@ -119,7 +119,7 @@ EXPR_TESTS = [
             Register(p, 'rdi', 0x40_0016),
             Deref(Register(p, 'rbp', 0x40_0016), -8)
         ),
-        expected_expr="<Bool reg_rdi_[0-9]+_64 == mem_[0-9a-f]+_[0-9]+_64>",
+        expected_expr="<Bool reg_rdi_[0-9]+_64 == Reverse\(mem_[0-9a-f]+_[0-9]+_64\)>",
 
         expected_addr=0x40_0016,
         set_ref_state=lambda expr, sts: [
@@ -145,7 +145,7 @@ EXPR_TESTS = [
             Memory(p, MEM, 4, 0x40_0012),
             Register(p, 'eax', 0x40_001e)
         ),
-        expected_expr=f'<BV32 mem_1a1ae0e0_[0-9]+_32 \* reg_eax_[0-9]+_32>',
+        expected_expr=f'<BV32 Reverse\(mem_1a1ae0e0_[0-9]+_32\) \* reg_eax_[0-9]+_32>',
         expected_addr=0x40_001e,
         set_ref_state=lambda expr, sts: [
             expr.lhs.set_ref_states(sts),

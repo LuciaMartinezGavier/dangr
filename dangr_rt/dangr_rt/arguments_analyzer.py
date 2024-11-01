@@ -1,9 +1,12 @@
-from typing import Final, Tuple
+from typing import Final, Sequence, cast
+from collections import namedtuple
 import angr
-from dangr_rt.variables import Variable, Register
+from dangr_rt.variables import Register
 from dangr_rt.simulator import BackwardSimulation, HookSimulation, ConcreteState
 from dangr_rt.dangr_types import Address, RegOffset
 
+RegInfo = namedtuple('RegInfo', ['size', 'addr'])
+SimRegArg = angr.calling_conventions.SimRegArg
 
 class ArgumentsAnalyzer:
     """
@@ -19,12 +22,37 @@ class ArgumentsAnalyzer:
         self.project: Final = project
         self.cfg: Final = cfg
         self.max_depth = max_depth
-        self.first_read_addrs: dict[RegOffset, Tuple[int, Address] | None] = {}
+        self.args_info: dict[RegOffset, RegInfo | None] = {}
 
-    def get_fn_args(self, fn_addr: Address) -> list[Variable]:
+    def get_fn_args(self, fn_addr: Address) -> Sequence[Register]:
         """
         Returns the arguments of the function from address `fn_addr`
         """
+        args = self._get_args(fn_addr)
+        self._init_args_info(args)
+
+        HookSimulation(
+            project=self.project,
+            init_addr=fn_addr,
+            stop=lambda sts: all(self.args_info.values()),
+            event_type='reg_read',
+            action=self._record_reg_read,
+            when=angr.BP_BEFORE,
+        ).simulate()
+
+        return self._create_arg_regs()
+
+    def _create_arg_regs(self) -> Sequence[Register]:
+        found_args = []
+        for offset, found_info in self.args_info.items():
+            if found_info is None:
+                raise ValueError("Argument couldn't be found")
+
+            reg_name = self.project.arch.register_size_names[offset, found_info.size]
+            found_args.append(Register(self.project, reg_name, found_info.addr))
+        return found_args
+
+    def _get_args(self, fn_addr: Address) -> list[SimRegArg]:
         func = self.cfg.functions.get(fn_addr)
         self.project.analyses.VariableRecoveryFast(func)
         cca = self.project.analyses.CallingConvention(func, self.cfg.model, analyze_callsites=True)
@@ -35,53 +63,38 @@ class ArgumentsAnalyzer:
         args = cca.cc.arg_locs(cca.prototype)
 
         for arg in args:
-            if not isinstance(arg, angr.calling_conventions.SimRegArg):
+            if not isinstance(arg, SimRegArg):
                 raise TypeError(f"Unsupported argument {arg}")
+
+        return cast(list[SimRegArg], args)
+
+    def _init_args_info(self, args: list[SimRegArg]) -> None:
+        for arg in args:
             offset: int = arg.check_offset(self.project.arch) # type: ignore [no-untyped-call]
-            self.first_read_addrs[offset] = None
-
-        h_simulator = HookSimulation(
-            project=self.project,
-            init_addr=fn_addr,
-            stop=lambda sts: all(self.first_read_addrs.values()),
-            event_type='reg_read',
-            action=self._record_reg_read,
-            when=angr.BP_BEFORE,
-        )
-
-        h_simulator.simulate()
-
-        found_args: list[Variable] = []
-        for offset, found_info in self.first_read_addrs.items():
-
-            if found_info is None:
-                raise ValueError("Argument couldn't be found")
-
-            size, addr = found_info
-            reg_name = self.project.arch.register_size_names[offset, size]
-
-            found_args.append(Register(self.project, reg_name, addr))
-        return found_args
+            self.args_info[offset] = None
 
     def _record_reg_read(self, state: angr.SimState) -> None:
         """Record the instruction address of the first read of the register."""
-        if hasattr(state.inspect, 'instruction'):
-            addr = state.inspect.instruction
-        else:
-            raise ValueError("Instruction address couldn't be found")
+        addr = self._record_addr(state)
+        offset = self._record_offset(state)
 
-        if hasattr(state.inspect, 'reg_read_offset'):
-            offset = state.solver.eval(state.inspect.reg_read_offset)
-        else:
-            raise ValueError("Register read offset was not set")
-
-        if offset in self.first_read_addrs and self.first_read_addrs[offset] is None:
+        if offset in self.args_info and self.args_info[offset] is None:
             block = state.block(addr) # type: ignore [no-untyped-call]
             size = block.capstone.insns[0].insn.operands[0].size
-            self.first_read_addrs[offset] = (size, addr)
+            self.args_info[offset] = RegInfo(size, addr)
+
+    def _record_addr(self, state: angr.SimState) -> Address:
+        if hasattr(state.inspect, 'instruction'):
+            return Address(state.inspect.instruction)
+        raise ValueError("Instruction address couldn't be found")
+
+    def _record_offset(self, state: angr.SimState) -> RegOffset:
+        if hasattr(state.inspect, 'reg_read_offset'):
+            return state.solver.eval(state.inspect.reg_read_offset, cast_to=int)
+        raise ValueError("Register read offset was not set")
 
 
-    def solve_arguments(self, fn_addr: Address, args: list[Variable]) -> list[ConcreteState]:
+    def solve_arguments(self, fn_addr: Address, args: Sequence[Register]) -> list[ConcreteState]:
         """
         Obtain the concrete values of the `registers` in the function at `fn_address`.
         Uses a "backwards simulation" to find the values of the registers.
@@ -101,15 +114,15 @@ class ArgumentsAnalyzer:
             project=self.project,
             target=fn_addr,
             cfg=self.cfg,
-            variables=args,
+            variables=list(args),
             max_depth=self.max_depth
         )
 
         found_states = simulator.simulate()
         return [self._get_args_values(args, state) for state in found_states]
 
-    def _get_args_values(self, args: list[Variable], state: angr.SimState) -> ConcreteState:
-        concrete_state = {}
+    def _get_args_values(self, args: Sequence[Register], state: angr.SimState) -> ConcreteState:
+        concrete_state: ConcreteState = {}
         for arg in args:
             arg.set_ref_states([state])
 

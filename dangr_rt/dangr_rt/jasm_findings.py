@@ -51,7 +51,7 @@ def software_breakpoint_mock1() -> list[StructuralFinding]:
     """
     # detect('/home/luciamg/debug_detection2/tests/test_files/software_breakpoint', '')
     return [StructuralFinding(
-        [0x401194, 0x4011a1],  # TODO: this should go because is not part of the jasm output
+        [0x401194, 0x4011a1],
         {'cmp-address': 0x4011a1},
         {
             'ptr': CaptureInfo('rax', 0x401194),
@@ -63,7 +63,7 @@ def software_breakpoint_mock1() -> list[StructuralFinding]:
 def software_breakpoint_mock() -> list[StructuralFinding]:
     # detect('/home/luciamg/debug_detection2/tests/test_files/liblzma.so.5.6.1', '')
     return [StructuralFinding(
-        [0x40d48e, 0x40d490],  # TODO: this should go because is not part of the jasm output
+        [0x40d48e, 0x40d490],
         {'cmp-address': 0x40d490},
         {
             'ptr': CaptureInfo('rdi', 0x40d48e),
