@@ -138,7 +138,7 @@ def test_software_breakpoint_detection(test_case):
     which is detemined if when a pointer is involved in a comparison and
     the comparison is True if the contents of the memory are the ENDBR64 opcode.
     """
-    dangr = DangrAnalysis(test_case.binary, max_depth=test_case.max_depth)
+    dangr = DangrAnalysis(test_case.binary, {'max_depth': test_case.max_depth})
     vf = dangr.get_variable_factory()
 
     for struc_find in test_case.struct_findings:

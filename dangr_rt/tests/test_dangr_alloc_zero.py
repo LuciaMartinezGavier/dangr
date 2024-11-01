@@ -44,7 +44,7 @@ def test_software_breakpoint_detection(test_case):
     This a case of use of this proyect it consists on detecting a AllocPool called with
     size 0.
     """
-    dangr = DangrAnalysis(test_case.binary)
+    dangr = DangrAnalysis(test_case.binary, {})
     vf = dangr.get_variable_factory()
 
     for struc_find in test_case.struct_findings:

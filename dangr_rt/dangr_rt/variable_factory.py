@@ -46,11 +46,11 @@ class VariableFactory:
         Raises:
             ValueError: If the argument index does not map to a register.
         """
-        normalized_name = self.REGISTER_MAP.get(argument.idx)
-        if normalized_name is None:
+        norm_name = self.REGISTER_MAP.get(argument.idx)
+        if norm_name is None:
             raise ValueError(f"No register for argument index {argument.idx}")
 
-        offset = self.project.arch.get_register_offset(normalized_name)
+        offset = self.project.arch.get_register_offset(norm_name) # type: ignore [no-untyped-call]
         reg_name = self.project.arch.register_size_names[offset, argument.size]
 
         return Register(self.project, reg_name, argument.call_address)

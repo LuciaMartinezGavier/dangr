@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import override, Final, Callable
+from typing import override, Final, Callable, Any
 from dataclasses import dataclass
 from copy import deepcopy
-from angr import SimState, SimulationManager, BP_AFTER, Project
-from angr.analyses import CFGFast
+import angr
 
 from dangr_rt.variables import Variable
 from dangr_rt.dangr_types import Address, CFGNode
@@ -23,16 +22,23 @@ class Simulator(ABC):
         project (angr.Project): The angr project to simulate.
         init_addr (Address): The initial address where the simulation starts.
     """
-    def __init__(self, project: Project) -> None:
+    def __init__(self, project: angr.Project) -> None:
         self.project = project
         self.initial_values: None | ConcreteState = None
 
-    def _initialize_state(self, start: Address) -> SimState:
+    def _initialize_state(
+        self,
+        start: Address,
+        add_options: set[str] | None = None
+    ) -> angr.SimState:
         """"
         Sets the initial values from concrete_state in the given state
         Modifies state
         """
-        state = self.project.factory.blank_state(addr=start)
+        state: angr.SimState = self.project.factory.blank_state( # type: ignore [no-untyped-call]
+            addr=start,
+            add_options=add_options
+        )
 
         if self.initial_values is None:
             return state
@@ -50,7 +56,7 @@ class Simulator(ABC):
         self.initial_values = initial_values
 
     @abstractmethod
-    def simulate(self) -> list[SimState]:
+    def simulate(self) -> list[angr.SimState]:
         """
         Excecutes simbolically.
 
@@ -58,7 +64,7 @@ class Simulator(ABC):
             concrete_state (ConcreteState): the values to initialize the simulation
 
         Returns
-            list[SimState]: the list of states on which the target was found
+            list[angr.SimState]: the list of states on which the target was found
 
         """
 
@@ -67,25 +73,25 @@ class ForwardSimulation(Simulator):
     """
     Simulate until reaching a target
     """
-    def __init__(self, project: Project, init_addr: Address, target: Address) -> None:
+    def __init__(self, project: angr.Project, init_addr: Address, target: Address) -> None:
         super().__init__(project)
         self.init_addr = init_addr
         self.target = target
 
     @override
-    def simulate(self) -> list[SimState]:
+    def simulate(self) -> list[angr.SimState]:
         found_states = []
 
         initial = self._initialize_state(self.init_addr)
         simulation = self.project.factory.simulation_manager(initial)
 
-        initial.inspect.b(
-            'instruction', when=BP_AFTER, instruction=self.target,
+        initial.inspect.b( # type: ignore [no-untyped-call]
+            'instruction', when=angr.BP_AFTER, instruction=self.target,
             action=lambda state: found_states.append(deepcopy(state))
         )
 
         while simulation.active:
-            simulation.step()
+            simulation.step() # type: ignore [no-untyped-call]
 
         return found_states
 
@@ -95,23 +101,23 @@ class StepSimulation(Simulator):
     The simulation can be resumed from the previous state.
     """
 
-    def __init__(self, project: Project, init_addr: Address) -> None:
+    def __init__(self, project: angr.Project, init_addr: Address) -> None:
         super().__init__(project)
         self.init_addr = init_addr
 
         self.target: Address | None = None
-        self.previous_states: list[SimState] | SimState | None = None
+        self.previous_states: list[angr.SimState] | angr.SimState | None = None
 
     def set_step_target(self, target: Address) -> None:
         self.target = target
 
-    def simulate(self) -> list[SimState]:
+    def simulate(self) -> list[angr.SimState]:
         if self.previous_states is None:
             initial = self._initialize_state(self.init_addr)
             self.previous_states = initial
 
         simulation = self.project.factory.simulation_manager(self.previous_states)
-        simulation.explore(find=self.target)
+        simulation.explore(find=self.target) # type: ignore [no-untyped-call]
         self.previous_states = simulation.found
 
         return simulation.found
@@ -119,16 +125,16 @@ class StepSimulation(Simulator):
 @dataclass
 class RecursiveCtx:
     current_depth: int
-    backup_state: SimState | None
+    backup_state: angr.SimState | None
     path: list[CFGNode]
 
 class BackwardSimulation(Simulator):
     """
     Simualte backwards until variables are concrete
     """
-    def __init__(
-        self, project: Project, target: Address,
-        cfg: CFGFast, variables: list[Variable],
+    def __init__( # pylint: disable=too-many-arguments
+        self, project: angr.Project, *, target: Address,
+        cfg: angr.analyses.CFGFast, variables: list[Variable],
         max_depth: int | None = None
     ) -> None:
 
@@ -136,11 +142,11 @@ class BackwardSimulation(Simulator):
         self.target = target
         self.cfg = cfg
         self.variables = variables
-        self.states_found: list[SimState] = []
+        self.states_found: list[angr.SimState] = []
         self.max_depth: Final = max_depth or 1
 
     @override
-    def simulate(self) -> list[SimState]:
+    def simulate(self) -> list[angr.SimState]:
         target_node = self.cfg.model.get_any_node(self.target)
 
         if target_node is None:
@@ -184,7 +190,7 @@ class BackwardSimulation(Simulator):
             self.states_found.append(state)
             return
 
-        for pred in [p for p in self.cfg.model.get_predecessors(initial_node)]:
+        for pred in list(self.cfg.model.get_predecessors(initial_node)):
             new_rec_ctx = RecursiveCtx(rec_ctx.current_depth + 1, state, rec_ctx.path + [pred])
             self._rec_simulate(target_node, new_rec_ctx)
 
@@ -193,7 +199,7 @@ class BackwardSimulation(Simulator):
         start: Address,
         target_node: CFGNode,
         pred: list[CFGNode],
-    ) -> SimState | None:
+    ) -> angr.SimState | None:
 
         initial = self._initialize_state(start)
         simgr = self.project.factory.simulation_manager(initial)
@@ -201,20 +207,20 @@ class BackwardSimulation(Simulator):
 
         while simgr.active and not state_found:
             self._remove_states(simgr.active, pred)
-            simgr.step()
+            simgr.step() # type: ignore [no-untyped-call]
             state_found = self._get_finding(simgr, self._node_addr(target_node))
 
         return state_found
 
-    def _get_finding(self, simgr: SimulationManager, target: Address) -> SimState | None:
+    def _get_finding(self, simgr: angr.SimulationManager, target: Address) -> angr.SimState | None:
         return next((state for state in simgr.active if state.addr == target), None)
 
-    def _remove_states(self, active_states: list[SimState], pred: list[CFGNode]) -> None:
+    def _remove_states(self, active_states: list[angr.SimState], pred: list[CFGNode]) -> None:
         for state in active_states:
             if self._remove_condition(state, pred):
                 active_states.remove(state)
 
-    def _remove_condition(self, state: SimState, pred: list[CFGNode]) -> bool:
+    def _remove_condition(self, state: angr.SimState, pred: list[CFGNode]) -> bool:
         already_visited = state.addr in state.history.bbl_addrs
         is_external_block =  state.addr >= EXTERNAL_ADDR_SPACE_BASE
         is_in_slice = state.addr in [p.addr for p in pred]
@@ -226,29 +232,76 @@ class HookSimulation(Simulator):
     """
     def __init__(
         self,
-        project: Project,
+        project: angr.Project,
         init_addr: Address,
-        event: str,
-        action: Callable[[SimState], None],
-        when: str, # angr constant BP_BEFORE | BP_AFTER | BP_BOTH
-        stop: Callable[[list[SimState]], bool],
-        condition: Callable[[SimState], bool] | None = None
+        stop: Callable[[list[angr.SimState]], bool],
+        **inspect_kwargs: Any
     ) -> None:
 
         super().__init__(project)
         self.init_addr = init_addr
-        self.event = event
-        self.action = action
-        self.when = when
         self.stop = stop
-        self.condition = condition
+        self.inspect_kwargs = inspect_kwargs
+
     @override
-    def simulate(self) -> list[SimState]:
+    def simulate(self) -> list[angr.SimState]:
         initial = self._initialize_state(self.init_addr)
         simulation = self.project.factory.simulation_manager(initial)
-        initial.inspect.b(self.event, action=self.action, when=self.when, condition=self.condition)
+        initial.inspect.b(**self.inspect_kwargs) # type: ignore [no-untyped-call]
 
         while simulation.active and not self.stop(simulation.active):
-            simulation.step()
+            simulation.step() # type: ignore [no-untyped-call]
 
         return simulation.active
+
+
+class BackwardSliceSimulation(Simulator):
+    """
+    TODO: finish
+    """
+    def __init__(self, project: angr.Project, init_addr: Address, target: Address) -> None:
+        super().__init__(project)
+        self.init_addr = init_addr
+        self.target = target
+
+    def _annotated_cfg(
+        self,
+        cfg: angr.analyses.CFGEmulated,
+        target_node: CFGNode
+    ) -> angr.analyses.CFGEmulated:
+
+        bs = self.project.analyses.BackwardSlice(
+            cfg, None, None,
+            targets=[(target_node, -1)],
+            control_flow_slice=True
+        )
+        acfg: angr.analyses.CFGEmulated = bs.annotated_cfg() # type: ignore [no-untyped-call]
+        return acfg
+
+    def _target_node(self, cfg: angr.analyses.CFGEmulated) -> CFGNode:
+        cfg_nodes: list[CFGNode] = cfg.nodes()
+        for node in cfg_nodes:
+            if node.size and node.addr <= self.target < node.addr + node.size:
+                return node
+        raise ValueError("Target node was not found")
+
+    @override
+    def simulate(self) -> list[angr.SimState]:
+        initial = self._initialize_state(self.init_addr, {angr.options.LAZY_SOLVES})
+        simgr = self.project.factory.simgr(initial) # type: ignore [no-untyped-call]
+
+        cfg = self.project.analyses.CFGEmulated(keep_state=True, starts=[self.init_addr])
+        target_node = self._target_node(cfg)
+        slicecutor = angr.exploration_techniques.Slicecutor(self._annotated_cfg(cfg, target_node))
+        simgr.use_technique(slicecutor)
+
+        found_states: list[angr.SimState] = []
+        initial.inspect.b( # type: ignore [no-untyped-call]
+            'instruction', when=angr.BP_AFTER, instruction=target_node.addr,
+            action=lambda state: found_states.append(deepcopy(state))
+        )
+
+        while simgr.active:
+            simgr.step()
+
+        return found_states

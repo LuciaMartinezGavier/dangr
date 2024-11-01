@@ -44,7 +44,9 @@ class DependencyAnalyzer:
         self.ddg = self.project.analyses.DDG(cfg=cfg, start=start_address)
 
     def _find_reference_nodes(self, addr: Address) -> list[angr.code_location.CodeLocation]:
-        return [node for node in self.ddg.graph.nodes() if node.ins_addr == addr] # type: ignore [union-attr]
+        return [node for node
+            in self.ddg.graph.nodes() # type: ignore [union-attr] # already chequed where its called
+            if node.ins_addr == addr]
 
     def check_dependency(self, source: Variable, target: Variable) -> bool:
         """

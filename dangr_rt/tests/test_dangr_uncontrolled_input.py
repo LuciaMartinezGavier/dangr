@@ -74,7 +74,7 @@ def test_software_breakpoint_detection(test_case):
     in it but the address of the ptr was never checked.
     """
 
-    dangr = DangrAnalysis(test_case.binary, max_depth=test_case.max_depth)
+    dangr = DangrAnalysis(test_case.binary, {'max_depth': test_case.max_depth})
     vf = dangr.get_variable_factory()
 
     for struc_find in test_case.struct_findings:

@@ -1,6 +1,7 @@
 
-from dangr_rt.dangr_types import Address
+from typing import Any
 from dataclasses import dataclass
+from dangr_rt.dangr_types import Address
 
 @dataclass
 class CaptureInfo:
@@ -26,15 +27,16 @@ class StructuralFinding:
         self.captured_regs = captured_regs
 
 
-def _run_jasm():
+def _run_jasm() -> None:
     pass
 
-def _parse_jasm_output():
+def _parse_jasm_output() -> None:
     pass
 
 
-def structural_filter(binary_path, jasm_pattern) -> list[StructuralFinding]:
+def structural_filter(binary_path: str, jasm_pattern: dict[str, Any]) -> list[StructuralFinding]:
     _run_jasm()
+    _, _= binary_path, jasm_pattern
     _parse_jasm_output()
     return hardware_breakpoint_mock()
 
@@ -44,7 +46,8 @@ def hardware_breakpoint_mock() -> list[StructuralFinding]:
 def software_breakpoint_mock1() -> list[StructuralFinding]:
     """
     TODO: Where does the register's address come from?
-    We could do some changes to the jasm pattern before executing so we can savee the register's use location
+    We could do some changes to the jasm pattern before 
+    executing so we can savee the register's use location
     """
     # detect('/home/luciamg/debug_detection2/tests/test_files/software_breakpoint', '')
     return [StructuralFinding(

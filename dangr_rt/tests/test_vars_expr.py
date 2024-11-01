@@ -202,7 +202,7 @@ def test_variable(test_case):
     assert var.size() == test_case.expected_size
 
     var.set_ref_states([default_state]*N)
-    assert set(var._angr_repr().keys()) == var.reference_states
+    assert set(var.angr_repr().keys()) == var.reference_states
 
     if isinstance(var, Literal):
         with pytest.raises(ValueError):

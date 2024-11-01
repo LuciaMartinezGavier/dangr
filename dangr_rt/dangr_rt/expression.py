@@ -1,18 +1,16 @@
-from typing import override
+from typing import override, Sequence, Any
 from abc import ABC, abstractmethod
 from itertools import product
+import claripy
 from dangr_rt.dangr_types import AngrExpr, Address, BYTE_SIZE, AngrBool, AngrArith
 from dangr_rt.variables import Variable
 
-class  Expression(ABC):
+class  Expression[TypeResult](ABC):
     """
     Represents an expression. It can be boolean or arithmetic
     """
-    def __init__(self, is_boolean) -> None:
-        self.is_boolean = is_boolean
-
     @abstractmethod
-    def get_expr(self) -> list[AngrArith]:
+    def get_expr(self) -> Sequence[TypeResult]:
         """
         Returns a list of the possible angr representations of this expression
         """
@@ -27,8 +25,8 @@ class  Expression(ABC):
         """
 
     @staticmethod
-    def _unique(l: list) -> list:
-        return list(set(l))
+    def _unique(list_w_repeated_elems: list[Any]) -> list[Any]:
+        return list(set(list_w_repeated_elems))
 
     @abstractmethod
     def _to_str(self) -> str:
@@ -37,28 +35,25 @@ class  Expression(ABC):
     def __repr__(self) -> str:
         return self._to_str()
 
-
-class Binary(Expression):
+class Binary[TypeLeft, TypeRight, TypeResult](Expression[TypeResult]):
     """
     Abstract class that represents a binary expression
     """
     def __init__(
         self,
-        lhs: Expression | Variable | int | bool,
-        rhs: Expression | Variable | int | bool,
-        is_boolean: bool,
+        lhs: Expression[TypeLeft] | Variable | int | bool,
+        rhs: Expression[TypeRight] | Variable | int | bool,
         op: str
     ):
-        super().__init__(is_boolean)
         self.op: str = op
         self.lhs = lhs
         self.rhs = rhs
 
     @override
     @property
-    def ref_addr(self) -> Address:
-        lhs_addr = getattr(self.lhs, 'ref_addr', None)
-        rhs_addr = getattr(self.rhs, 'ref_addr', None)
+    def ref_addr(self) -> Address | None:
+        lhs_addr: int | None = getattr(self.lhs, 'ref_addr', None)
+        rhs_addr: int | None = getattr(self.rhs, 'ref_addr', None)
 
         if lhs_addr is None:
             return rhs_addr
@@ -71,144 +66,158 @@ class Binary(Expression):
     def _to_str(self) -> str:
         return f'[{self.lhs!r} {self.op} {self.rhs!r}]'
 
-    def _operands_product(self) -> list[tuple[AngrExpr, AngrExpr]]:
+    def _operands_product(self) -> list[tuple[TypeLeft, TypeRight]]:
         lhs_exprs = getattr(self.lhs, 'get_expr', lambda: [self.lhs])()
         rhs_exprs = getattr(self.rhs, 'get_expr', lambda: [self.rhs])()
 
-        return product(lhs_exprs, rhs_exprs)
+        return list(product(lhs_exprs, rhs_exprs))
 
-class Eq(Binary):
+class Eq(Binary[AngrExpr, AngrExpr, AngrBool]):
     """
     Eq(lhs, rhs) represents the constraint (lhs == rhs)
     """
     def __init__(
         self,
-        lhs: Expression | Variable | int | bool,
-        rhs: Expression | Variable | int | bool
+        lhs: Expression[AngrExpr] | Variable | int | bool,
+        rhs: Expression[AngrExpr] | Variable | int | bool
     ):
-        super().__init__(lhs, rhs, is_boolean=True, op='==')
+        super().__init__(lhs, rhs, op='==')
 
     @override
-    def get_expr(self) -> list[AngrBool]:
+    def get_expr(self) -> Sequence[AngrBool]:
         return self._unique([lh == rh for lh, rh in self._operands_product()])
 
-class And(Binary):
+class And(Binary[AngrBool, AngrBool, AngrBool]):
     """
     And(lhs, rhs) represents the constraint (lhs & rhs)
     """
-    def __init__(self, lhs: Expression | bool, rhs: Expression | bool):
-        super().__init__(lhs, rhs, is_boolean=True, op='&')
+    def __init__(self, lhs: Expression[AngrBool] | bool, rhs: Expression[AngrBool] | bool):
+        super().__init__(lhs, rhs, op='&')
 
     @override
-    def get_expr(self) -> list[AngrBool]:
-        return self._unique([lh & rh for lh, rh in self._operands_product()])
+    def get_expr(self) -> Sequence[AngrBool]:
+        return self._unique([claripy.And(lh, rh) for lh, rh in self._operands_product()])
 
-class Or(Binary):
+class Or(Binary[AngrBool, AngrBool, AngrBool]):
     """
     Or(lhs, rhs) represents the constraint (lhs | rhs)
     """
-    def __init__(self, lhs: Expression | bool, rhs: Expression | bool):
-        super().__init__(lhs, rhs, is_boolean=True, op='|')
+    def __init__(self, lhs: Expression[AngrBool] | bool, rhs: Expression[AngrBool] | bool):
+        super().__init__(lhs, rhs, op='|')
 
     @override
-    def get_expr(self) -> list[AngrBool]:
-        return self._unique([lh | rh for lh, rh in self._operands_product()])
+    def get_expr(self) -> Sequence[AngrBool]:
+        return self._unique([claripy.Or(lh, rh) for lh, rh in self._operands_product()])
 
-class Not(Expression):
+class Not(Expression[AngrBool]):
     """
     Not(operand) represents the constraint ~operand
     """
-    def __init__(self, operand: Expression | bool) -> None:
-        super().__init__(is_boolean=True)
+    def __init__(self, operand: Expression[AngrBool] | bool) -> None:
         self.operand = operand
 
-    def _not_expr(self, expr) -> AngrArith:
-        return not expr if isinstance(expr, bool) else ~expr
-
     @override
-    def get_expr(self) -> list[AngrArith]:
-        return self._unique([self._not_expr(op_expr) for op_expr in self.operand.get_expr()])
+    def get_expr(self) -> Sequence[AngrBool]:
+        if isinstance(self.operand, bool):
+            return [claripy.BoolV(self.operand)]
+        exprs = getattr(self.operand, 'get_expr', lambda: claripy.BoolV(self.operand))()
+        return self._unique([claripy.Not(op_expr) for op_expr in exprs])
 
     @override
     @property
     def ref_addr(self) -> Address | None:
-        return self.operand.ref_addr
+        return getattr(self.operand, 'ref_addr', None)
 
     @override
     def _to_str(self) -> str:
         return f'~{self.operand!r}'
 
-class Add(Binary):
+class Add(Binary[AngrArith, AngrArith, AngrArith]):
     """
     Add(lhs, rhs) represents the operation lhs + rhs
     """
-    def __init__(self, lhs: Expression | Variable | int, rhs: Expression | Variable | int) -> None:
-        super().__init__(lhs, rhs, is_boolean=False, op='+')
+    def __init__(
+        self,
+        lhs: Expression[AngrArith] | Variable | int,
+        rhs: Expression[AngrArith] | Variable | int
+    ) -> None:
+        super().__init__(lhs, rhs, op='+')
 
     @override
-    def get_expr(self) -> list[AngrArith]:
+    def get_expr(self) -> Sequence[AngrArith]:
         return self._unique([lh + rh for lh, rh in self._operands_product()])
 
-class Mul(Binary):
+class Mul(Binary[AngrArith, AngrArith, AngrArith]):
     """
     Mul(lhs, rhs) represents the operation lhs + rhs
     """
-    def __init__(self, lhs: Expression | Variable | int, rhs: Expression | Variable | int) -> None:
-        super().__init__(lhs, rhs, is_boolean=False, op='*')
+    def __init__(
+        self,
+        lhs: Expression[AngrArith] | Variable | int,
+        rhs: Expression[AngrArith] | Variable | int
+    ) -> None:
+        super().__init__(lhs, rhs, op='*')
 
     @override
-    def get_expr(self) -> list[AngrArith]:
+    def get_expr(self) -> Sequence[AngrArith]:
         return self._unique([lh * rh for lh, rh in self._operands_product()])
 
-class Sub(Binary):
+class Sub(Binary[AngrArith, AngrArith, AngrArith]):
     """
     Sub(lhs, rhs) represents the operation lhs - rhs
     """
-    def __init__(self, lhs: Expression | Variable | int, rhs: Expression | Variable | int) -> None:
-        super().__init__(lhs, rhs, is_boolean=False, op='-')
+    def __init__(
+        self,
+        lhs: Expression[AngrArith] | Variable | int,
+        rhs: Expression[AngrArith] | Variable | int
+    ) -> None:
+        super().__init__(lhs, rhs, op='-')
 
     @override
-    def get_expr(self) -> list[AngrArith]:
+    def get_expr(self) -> Sequence[AngrArith]:
         return self._unique([lh - rh for lh, rh in self._operands_product()])
 
-class Div(Binary):
+class Div(Binary[AngrArith, AngrArith, AngrArith]):
     """
     Div(lhs, rhs) represents the operation lhs // rhs (integer division)
     """
-    def __init__(self, lhs: Expression | Variable | int, rhs: Expression | Variable | int) -> None:
-        super().__init__(lhs, rhs, is_boolean=False, op='//')
+    def __init__(
+        self,
+        lhs: Expression[AngrArith] | Variable | int,
+        rhs: Expression[AngrArith] | Variable | int
+    ) -> None:
+        super().__init__(lhs, rhs, op='//')
 
     @override
-    def get_expr(self) -> list[AngrArith]:
+    def get_expr(self) -> Sequence[AngrArith]:
         return self._unique([lh // rh for lh, rh in self._operands_product()])
 
-class IsMax(Expression):
+class IsMax(Expression[AngrBool]):
     """
     IsMax(operand) represents the constraint operand == <operand max value>
     """
-    def __init__(self, operand: Expression | int):
-        super().__init__(is_boolean=True)
+    def __init__(self, operand: Expression[AngrArith]):
         self.operand = operand
 
     def _size(self, angr_exp: AngrArith) -> int:
-        if isinstance(angr_exp, int) or isinstance(angr_exp, bool):
+        if isinstance(angr_exp, (int, bool)):
             raise ValueError("Can't calculate the max value of an int or bool", angr_exp)
 
         return angr_exp.size()
 
     def _max_value(self, angr_exp: AngrArith) -> int:
-        max_value = 2**self._size(angr_exp)*BYTE_SIZE
+        max_value: int = 2**self._size(angr_exp)*BYTE_SIZE
         return max_value
 
     @override
-    def get_expr(self) -> list[AngrBool]:
+    def get_expr(self) -> Sequence[AngrBool]:
         return self._unique([
             exp == self._max_value(exp) for exp in self.operand.get_expr()
         ])
 
     @override
     @property
-    def ref_addr(self) -> Address:
+    def ref_addr(self) -> Address | None:
         return self.operand.ref_addr
 
     @override

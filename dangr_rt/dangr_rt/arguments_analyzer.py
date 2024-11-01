@@ -37,16 +37,16 @@ class ArgumentsAnalyzer:
         for arg in args:
             if not isinstance(arg, angr.calling_conventions.SimRegArg):
                 raise TypeError(f"Unsupported argument {arg}")
-
-            self.first_read_addrs[arg.check_offset(self.project.arch)] = None
+            offset: int = arg.check_offset(self.project.arch) # type: ignore [no-untyped-call]
+            self.first_read_addrs[offset] = None
 
         h_simulator = HookSimulation(
             project=self.project,
             init_addr=fn_addr,
-            event='reg_read',
+            stop=lambda sts: all(self.first_read_addrs.values()),
+            event_type='reg_read',
             action=self._record_reg_read,
             when=angr.BP_BEFORE,
-            stop=lambda sts: all(self.first_read_addrs.values())
         )
 
         h_simulator.simulate()
@@ -76,7 +76,8 @@ class ArgumentsAnalyzer:
             raise ValueError("Register read offset was not set")
 
         if offset in self.first_read_addrs and self.first_read_addrs[offset] is None:
-            size = state.block(addr).capstone.insns[0].insn.operands[0].size
+            block = state.block(addr) # type: ignore [no-untyped-call]
+            size = block.capstone.insns[0].insn.operands[0].size
             self.first_read_addrs[offset] = (size, addr)
 
 

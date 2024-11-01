@@ -1,4 +1,6 @@
+from typing import Any, Sequence
 import argparse
+
 
 class DangrArgparse(argparse.ArgumentParser):
     """
@@ -12,7 +14,7 @@ class DangrArgparse(argparse.ArgumentParser):
     """
     def __init__(self, description: str) -> None:
         super().__init__(description=description)
-        self._config: dict = {}
+        self._config: dict[str, Any] = {}
 
         self._add_dangr_argument(
             "max_depth",
@@ -23,16 +25,20 @@ class DangrArgparse(argparse.ArgumentParser):
             help="Maximum depth for backward execution."
         )
 
-    def _add_dangr_argument(self, config_key: str, *args, **kwargs):
-        self._config[config_key] = kwargs.get('default')
+    def _add_dangr_argument(self, config_key: str, *args: Any, **kwargs: Any) -> None:
+        self._config[config_key] = str(kwargs.get('default'))
         super().add_argument(*args, **kwargs)
 
-    def parse_args(self, args=None, namespace=None):
+    def dangr_parse_args(
+        self,
+        args: Sequence[str] | None,
+        namespace: argparse.Namespace | None = None
+    ) -> argparse.Namespace:
         """
         Parses arguments, updates the config dictionary only with fixed argument values,
         and attaches config as an attribute of the returned namespace.
         """
-        parsed_args = super().parse_args(args, namespace)
+        parsed_args = self.parse_args(args, namespace)
 
         for key in self._config:
             if hasattr(parsed_args, key):

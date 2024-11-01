@@ -1,9 +1,9 @@
-from typing import Final
+from typing import Final, Any
 from collections import namedtuple
 import angr
 
 from dangr_rt.jasm_findings import StructuralFinding
-from dangr_rt.dangr_types import Address, Path
+from dangr_rt.dangr_types import Address, Path, AngrBool
 from dangr_rt.variables import Variable
 from dangr_rt.variable_factory import VariableFactory
 from dangr_rt.expression import Expression
@@ -16,30 +16,33 @@ class DangrAnalysis:
     Class that provides all the interface necesary for the analysis
     """
 
-    def __init__(self, binary_path: Path, max_depth: int = 10) -> None:
+    def __init__(self, binary_path: Path, config: dict[str, Any]) -> None:
         """
         Here we set all the attributes that are independent from the structural finding
         """
         # general config
         self.project: Final = angr.Project(binary_path, load_options={"auto_load_libs": False})
         self.cfg: Final = self.project.analyses.CFGFast()
+        self.config = config
 
         # helper modules init
         self.variable_factory = VariableFactory(self.project)
         self.dependency_analyzer = DependencyAnalyzer(self.project, self.variable_factory)
         self.simulator: Simulator | None = None
-        self.arguments_analyzer = ArgumentsAnalyzer(self.project, self.cfg, max_depth)
+        self.arguments_analyzer = ArgumentsAnalyzer(self.project,
+                                                    self.cfg,
+                                                    self.config.get('max_depth', None))
 
         # structural finding related
         self.struct_f: StructuralFinding | None = None
         self.current_function: Address | None = None
 
         # simulation related
-        self.constraints: list[Expression]  = []
+        self.constraints: list[Expression[AngrBool]]  = []
         self.variables: list[Variable] = []
 
 
-    def _struct_finding_is_set(self):
+    def _struct_finding_is_set(self) -> None:
         """
         Checks if self.simulator, self.struct_f, and self.current_function
         are not None. Raises ValueError if any of them is None, indicating that
@@ -104,7 +107,12 @@ class DangrAnalysis:
             list[ConcreteState]: all the possible combinations of the arguments values
         """
         self._struct_finding_is_set()
-        return self.arguments_analyzer.solve_arguments(self.current_function, self.get_fn_args()) # type: ignore [arg-type]
+
+        return self.arguments_analyzer.solve_arguments(
+            # already checked in _struct_finding_is_set() ↓
+            self.current_function, # type: ignore [arg-type]
+            self.get_fn_args()
+        )
 
     def simulate(
         self,
@@ -112,6 +120,7 @@ class DangrAnalysis:
         init_states: list[ConcreteState] | None = None
     ) -> list[angr.SimState]:
         """
+        TODO: move this somewere else
         Symbolic execute the current function until the target is found
         """
         self._struct_finding_is_set()
@@ -138,14 +147,14 @@ class DangrAnalysis:
 
     def _add_constraints_to_states(
         self,
-        constraints: list[Expression],
+        constraints: list[Expression[AngrBool]],
         states: list[angr.SimState]
     ) -> None:
 
         for constraint in constraints:
             for expr in constraint.get_expr():
                 for state in states:
-                    state.add_constraints(expr)
+                    state.solver.add(expr)
 
 
     def _create_checkpoints(self, target: Address) -> 'Checkpoints':
@@ -157,12 +166,13 @@ class DangrAnalysis:
         for constraint in self.constraints:
             checkpoints.add_constraint(constraint.ref_addr or target, constraint)
 
-        if checkpoints.last_address() is None or checkpoints.last_address() < target: # type: ignore [operator]
+        if checkpoints.last_address() is None or\
+           checkpoints.last_address() < target: # type: ignore [operator]
             checkpoints.add_address(target)
 
         return checkpoints.sorted()
 
-    def add_constraint(self, constraint: Expression) -> None:
+    def add_constraint(self, constraint: Expression[AngrBool]) -> None:
         """
         Adds a constraints to the analysis
         """
@@ -192,7 +202,7 @@ class Checkpoints(dict[Address, CheckpointGroup]):
 
         self[address].variables.append(variable)
 
-    def add_constraint(self, address: Address, constraint: Expression) -> None:
+    def add_constraint(self, address: Address, constraint: Expression[AngrBool]) -> None:
         if address not in self:
             self.add_address(address)
 

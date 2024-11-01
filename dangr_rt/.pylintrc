@@ -1,0 +1,14 @@
+[MASTER]
+ignore=tests
+
+[FORMAT]
+max-line-length=100
+
+[MESSAGES CONTROL]
+
+disable=C0114,  # Missing module docstring (missing-module-docstring)
+        C0116,  # Missing function or method docstring (missing-function-docstring)
+        C0115,  # Missing class docstring (missing-class-docstring)
+        R0903,  # Too few public methods (_/2) (too-few-public-methods)
+        E0401,  # Unable to import ___ (import-error)
+        E0602,  # Undefined variable '_' (undefined-variable)

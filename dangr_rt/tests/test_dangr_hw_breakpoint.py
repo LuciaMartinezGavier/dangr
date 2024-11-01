@@ -48,7 +48,7 @@ def test_software_breakpoint_detection(test_case):
     It is reported when the binary is trying to detect a hardware breakpoint
     which is detemined if when the debug registers are being read through the syscall ptrace
     """
-    dangr = DangrAnalysis(test_case.binary, max_depth=test_case.max_depth)
+    dangr = DangrAnalysis(test_case.binary, {'max_depth': test_case.max_depth})
     vf = dangr.get_variable_factory()
 
     for struc_find in test_case.struct_findings:

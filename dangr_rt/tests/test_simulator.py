@@ -5,12 +5,13 @@ from typing import Final, Callable, Any
 import pytest
 import angr
 
-from tests.conftest import BinaryBasedTestCase
+from tests.conftest import BinaryBasedTestCase, fullpath
 
 from dangr_rt.variables import Register, Memory
 from dangr_rt.dangr_types import Address
-from dangr_rt.simulator import Simulator, ForwardSimulation, StepSimulation, BackwardSimulation, HookSimulation, ConcreteState
+from dangr_rt.simulator import Simulator, ForwardSimulation, StepSimulation, BackwardSimulation, HookSimulation, ConcreteState, BackwardSliceSimulation
 
+SIMULATOR_DIR = 'simulator'
 
 @dataclass(kw_only=True)
 class SimulatorTestCase(BinaryBasedTestCase):
@@ -18,7 +19,7 @@ class SimulatorTestCase(BinaryBasedTestCase):
     expected: Callable[list[angr.SimState], bool] | Callable[[list[angr.SimState], int], bool]
     init_state: Callable[angr.Project, ConcreteState] | None = None
     targets: list[Address] | None = None # only for step simulations
-    files_directory: str = 'simulator'
+    files_directory: str = SIMULATOR_DIR
 
 FOO: Final = 539
 BAR: Final = 324
@@ -123,10 +124,11 @@ SIMULATOR_TESTS: Final = [
     SimulatorTestCase(
         asm_filename='hook.s',
         simulator=lambda p: HookSimulation(
-            p, 0x40_0057, 'instruction',
+            p, 0x40_0057,
+            stop=lambda sts: len(context) == context[0] and sts[0].addr == 0x40_005c,
+            event_type='instruction',
             action=lambda sts: context.append(sts.solver.eval(sts.regs.edi)),
             when=angr.BP_BEFORE,
-            stop=lambda sts: len(context) == context[0] and sts[0].addr == 0x40_005c,
             condition=lambda st: st.addr == 0x40_0027
         ),
 
@@ -138,8 +140,8 @@ SIMULATOR_TESTS: Final = [
     SimulatorTestCase(
         asm_filename='backward.s',
         simulator=lambda p: BackwardSimulation(
-            p, 0x40_0000, p.analyses.CFGFast(),
-            [Register(p, 'edi', 0x40_0004)], max_depth=5
+            p, target=0x40_0000, cfg=p.analyses.CFGFast(),
+            variables=[Register(p, 'edi', 0x40_0004)], max_depth=5
         ),
         expected=lambda sts: len(sts) == 1 and\
                              sts[0].regs.edi.concrete and\
@@ -148,14 +150,19 @@ SIMULATOR_TESTS: Final = [
     SimulatorTestCase(
         asm_filename='backward.s',
         simulator=lambda p: BackwardSimulation(
-            p, 0x40_0000, p.analyses.CFGFast(),
-            [Register(p, 'edi', 0x40_0004)], max_depth=2
+            p, target=0x40_0000, cfg=p.analyses.CFGFast(),
+            variables=[Register(p, 'edi', 0x40_0004)], max_depth=2
         ),
         expected=lambda sts: len(sts) == 1 and
                             not sts[0].regs.edi.concrete and
                             sts[0].solver.eval(sts[0].regs.edi.args[0]) == 5 and\
                             sts[0].regs.edi.op== '__add__'
-    )
+    ),
+    # SimulatorTestCase(
+    #     binary=fullpath(SIMULATOR_DIR, 'bmp_support_lib'),
+    #     simulator=lambda p: BackwardSliceSimulation(p, 0x40_14da, 0x40_17e9),
+    #     expected=lambda sts: breakpoint()
+    # )
 ]
 
 @pytest.mark.parametrize("test_case", SIMULATOR_TESTS, indirect=True)
