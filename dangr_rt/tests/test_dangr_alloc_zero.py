@@ -8,13 +8,13 @@ from dangr_rt.dangr_analysis import DangrAnalysis
 from dangr_rt.expression import Eq
 from dangr_rt.dangr_types import Argument
 from dangr_rt.variables import Variable, Register
-from dangr_rt.jasm_findings import StructuralFinding
+from dangr_rt.jasm_findings import JasmMatch, AddressMatch
 
 DANGR_DIR = 'dangr_analysis'
 
 @dataclass(kw_only=True)
 class AllocZeroTestCase(BinaryBasedTestCase):
-    struct_findings: list
+    jasm_matches: list
     expected_size: Callable[angr.Project, Variable]
     vulnerable: bool
     files_directory: str = DANGR_DIR
@@ -22,16 +22,24 @@ class AllocZeroTestCase(BinaryBasedTestCase):
 HW_BRKP_TESTS = [
     AllocZeroTestCase(
         binary=fullpath(DANGR_DIR, 'small_bmp_support_lib'),
-        struct_findings=[
-            StructuralFinding([0x40_12c7], {"alloc_call": 0x40_12c7}, {})
+        jasm_matches=[
+            JasmMatch(
+                match={0x40_12c7:''},
+                address_captures=[AddressMatch(name="alloc_call", value=0x40_12c7)],
+                variables=[]
+            )
         ],
         expected_size=lambda p: Register(p, 'edi', 0x40_12c7),
         vulnerable=True
     ),
     AllocZeroTestCase(
         binary=fullpath(DANGR_DIR, 'small_bmp_support_lib'),
-        struct_findings=[
-            StructuralFinding([0x40_13a6], {"alloc_call": 0x40_13a6}, {})
+        jasm_matches=[
+            JasmMatch(
+                match={0x40_13a6:''},
+                address_captures=[AddressMatch(name="alloc_call", value=0x40_13a6)],
+                variables=[]
+            )
         ],
         expected_size=lambda p: Register(p, 'edi', 0x40_13a6),
         vulnerable=False
@@ -47,9 +55,9 @@ def test_software_breakpoint_detection(test_case):
     dangr = DangrAnalysis(test_case.binary, {})
     vf = dangr.get_variable_factory()
 
-    for struc_find in test_case.struct_findings:
+    for struc_find in test_case.jasm_matches:
         dangr.set_finding(struc_find)
-        alloc_call = struc_find.address_captures["alloc_call"]
+        alloc_call = struc_find.addrmatch_from_name("alloc_call").value
 
         size = vf.create_from_argument(Argument(1, alloc_call, 4))
         assert size == test_case.expected_size(dangr.project)

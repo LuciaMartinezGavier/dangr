@@ -5,7 +5,7 @@ import angr
 from tests.conftest import BinaryBasedTestCase,fullpath
 
 from dangr_rt.dangr_analysis import DangrAnalysis
-from dangr_rt.jasm_findings import StructuralFinding
+from dangr_rt.jasm_findings import JasmMatch, AddressMatch
 from dangr_rt.variables import Variable, Register, Literal
 from dangr_rt.dangr_types import Argument
 from dangr_rt.expression import And, Eq
@@ -16,7 +16,7 @@ DANGR_DIR = 'dangr_analysis'
 
 @dataclass(kw_only=True)
 class HwBrkpTestCase(BinaryBasedTestCase):
-    struct_findings: list
+    jasm_matches: list
     expected_args: Callable[[angr.Project, list[ConcreteState]], bool]
     expected_a1: Callable[angr.Project, Variable]
     expected_a3: Callable[angr.Project, Variable]
@@ -27,8 +27,12 @@ class HwBrkpTestCase(BinaryBasedTestCase):
 HW_BRKP_TESTS = [
     HwBrkpTestCase(
         binary=fullpath(DANGR_DIR, 'hw_breakpoint'),
-        struct_findings=[
-            StructuralFinding([0x40_11f3], {"ptrace_call": 0x40_11f3}, {})
+        jasm_matches=[
+            JasmMatch(
+                match={0x40_11f3:''},
+                address_captures=[AddressMatch(name="ptrace_call", value=0x40_11f3)],
+                variables=[]
+            )
         ],
         expected_args=lambda p, args: args == [{
             Register(p, 'esi', 0x40_11d4): 212,
@@ -51,9 +55,9 @@ def test_software_breakpoint_detection(test_case):
     dangr = DangrAnalysis(test_case.binary, {'max_depth': test_case.max_depth})
     vf = dangr.get_variable_factory()
 
-    for struc_find in test_case.struct_findings:
+    for struc_find in test_case.jasm_matches:
         dangr.set_finding(struc_find)
-        ptrace_call = struc_find.address_captures["ptrace_call"]
+        ptrace_call = struc_find.addrmatch_from_name("ptrace_call").value
 
         a1 = vf.create_from_argument(Argument(1, ptrace_call, 4))
 

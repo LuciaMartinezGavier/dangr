@@ -9,7 +9,8 @@ from tests.conftest import BinaryBasedTestCase, fullpath
 
 from dangr_rt.variables import Register, Memory
 from dangr_rt.dangr_types import Address
-from dangr_rt.simulator import Simulator, ForwardSimulation, StepSimulation, BackwardSimulation, HookSimulation, ConcreteState, BackwardSliceSimulation
+from dangr_rt.simulator import (Simulator, ForwardSimulation, StepSimulation,
+                                BackwardSimulation, HookSimulation, ConcreteState)
 
 SIMULATOR_DIR = 'simulator'
 
@@ -113,7 +114,7 @@ SIMULATOR_TESTS: Final = [
     ),
     SimulatorTestCase(
         asm_filename='step.s',
-        simulator=lambda p: StepSimulation(p, 0x40_000a),
+        simulator=lambda p: StepSimulation(p, 0x40_000a, timeout=3),
         expected=step_validate,
         targets=[0x40_0063, 0x40_00a1, 0x40_00f4, 0x40_017f],
         init_state=lambda p: {

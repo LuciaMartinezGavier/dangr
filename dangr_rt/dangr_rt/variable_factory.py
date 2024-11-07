@@ -1,6 +1,6 @@
 from typing import Final
 import angr
-from dangr_rt.jasm_findings import CaptureInfo
+from dangr_rt.jasm_findings import VariableMatch
 from dangr_rt.dangr_types import Argument, Address, BYTE_SIZE
 from dangr_rt.variables import Variable, Register, Memory, Literal
 
@@ -21,17 +21,17 @@ class VariableFactory:
     def __init__(self, project: angr.Project) -> None:
         self.project: Final = project
 
-    def create_from_capture(self, capture: CaptureInfo) -> Variable:
+    def create_from_capture(self, var: VariableMatch) -> Variable:
         """
         Creates a Variable from the structural match info.
         """
-        match capture.captured:
+        match var.value:
             case int():
-                return Literal(self.project, capture.captured, capture.address)
+                return Literal(self.project, var.value, var.addr)
             case str():
-                return Register(self.project, capture.captured, capture.address)
+                return Register(self.project, var.value, var.addr)
             case _:
-                raise ValueError(f"Unsupported capture type: {type(capture.captured)}")
+                raise ValueError(f"Unsupported matched type: {type(var.value)} for {var.name}")
 
     def create_from_argument(self, argument: Argument) -> Variable:
         """

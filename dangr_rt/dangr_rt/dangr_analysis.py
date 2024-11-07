@@ -1,7 +1,6 @@
 from typing import Final, Any, Sequence
 import angr
-
-from dangr_rt.jasm_findings import StructuralFinding
+from dangr_rt.jasm_findings import JasmMatch
 from dangr_rt.dangr_types import Address, Path, AngrBool
 from dangr_rt.variables import Variable, Register
 from dangr_rt.variable_factory import VariableFactory
@@ -25,7 +24,7 @@ class DangrAnalysis: # pylint: disable=too-many-instance-attributes
         self.cfg: Final = self.project.analyses.CFGFast()
         self.config = config
         self.current_function: Address | None = None
-        self.struct_f: StructuralFinding | None = None
+        self.jasm_match: JasmMatch | None = None
 
         # helper modules init
         self.simulator: DangrSimulation | None = None
@@ -35,32 +34,35 @@ class DangrAnalysis: # pylint: disable=too-many-instance-attributes
                                                     self.cfg,
                                                     self.config.get('max_depth', None))
 
-    def _struct_finding_is_set(self) -> None:
+    def _jasm_match_set(self) -> None:
         """
-        Checks if self.simulator, self.struct_f, and self.current_function
+        Checks if self.simulator, self.jasm_match, and self.current_function
         are not None. Raises ValueError if any of them is None, indicating that
         set_finding should be called first.
         """
-
-        if self.simulator is None or self.struct_f is None or self.current_function is None:
+        if self.simulator is None or self.jasm_match is None or self.current_function is None:
             raise ValueError("Analysis not properly initialized. Call `set_finding()` first.")
 
     def add_variables(self, variables: list[Variable]) -> None:
-        self._struct_finding_is_set()
+        self._jasm_match_set()
         self.simulator.add_variables(variables) # type: ignore [union-attr]
 
-    def set_finding(self, struct_f: StructuralFinding) -> None:
+    def set_finding(self, jasm_match: JasmMatch) -> None:
         """
         Sets the structural finding and updates the current function.
 
         Args:
-            struct_f (StructuralFinding): The new structural finding to set.
+            jasm_match (JasmMatch): The new structural finding to set.
         """
-        self.struct_f = struct_f
+        self.jasm_match = jasm_match
 
         # Restart analysis
         self.current_function = self._find_function()
-        self.simulator = DangrSimulation(project=self.project, init_addr=self.current_function)
+        self.simulator = DangrSimulation(
+            project=self.project,
+            init_addr=self.current_function,
+            timeout=self.config.get('timeout', None)
+        )
         self.dependency_analyzer.create_dependency_graph(self.current_function)
 
     def get_variable_factory(self) -> VariableFactory:
@@ -74,20 +76,26 @@ class DangrAnalysis: # pylint: disable=too-many-instance-attributes
             ValueError: If no single function contains the matched address range, 
             typically caused by the jasm pattern spanning multiple functions.
         """
+        if self.jasm_match is None:
+            raise ValueError('Structural finding not set')
+
         for fn in self.cfg.kb.functions.values():
             if self._finding_in_func(fn):
                 return Address(fn.addr)
 
-        raise ValueError('Function not found for target address')
+        raise ValueError('Function not found for target address: '
+        f'start at {hex(self.jasm_match.start)}, end at {hex(self.jasm_match.end)}')
 
     def _finding_in_func(self, fn: angr.knowledge_plugins.functions.function.Function) -> bool:
-        if self.struct_f is None:
+        if self.jasm_match is None:
             raise ValueError('Structural finding not set')
 
-        return bool((fn.addr <= self.struct_f.start) and (self.struct_f.end <= fn.addr + fn.size))
+        return bool(
+            (fn.addr <= self.jasm_match.start) and\
+            (self.jasm_match.end <= fn.addr + fn.size))
 
     def get_fn_args(self) -> Sequence[Register]:
-        self._struct_finding_is_set()
+        self._jasm_match_set()
         return self.arguments_analyzer.get_fn_args(self.current_function) # type: ignore [arg-type]
 
     def concretize_fn_args(self) -> list[ConcreteState]:
@@ -98,10 +106,10 @@ class DangrAnalysis: # pylint: disable=too-many-instance-attributes
         Returns:
             list[ConcreteState]: all the possible combinations of the arguments values
         """
-        self._struct_finding_is_set()
+        self._jasm_match_set()
 
         return self.arguments_analyzer.solve_arguments(
-            # already checked in _struct_finding_is_set() ↓
+            # already checked in _jasm_match_set() ↓
             self.current_function, # type: ignore [arg-type]
             self.get_fn_args()
         )
@@ -111,14 +119,14 @@ class DangrAnalysis: # pylint: disable=too-many-instance-attributes
         target: Address,
         init_states: list[ConcreteState] | None = None
     ) -> list[angr.SimState]:
-        self._struct_finding_is_set()
+        self._jasm_match_set()
         return self.simulator.simulate(target, init_states) # type: ignore [union-attr]
 
     def add_constraint(self, constraint: Expression[AngrBool]) -> None:
         """
         Adds a constraints to the analysis
         """
-        self._struct_finding_is_set()
+        self._jasm_match_set()
         self.simulator.add_constraints([constraint]) # type: ignore [union-attr]
 
     def satisfiable(self, states: list[angr.SimState]) -> bool:

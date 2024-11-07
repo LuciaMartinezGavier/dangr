@@ -101,12 +101,19 @@ class StepSimulation(Simulator):
     The simulation can be resumed from the previous state.
     """
 
-    def __init__(self, project: angr.Project, init_addr: Address) -> None:
+    def __init__(
+        self,
+        project: angr.Project,
+        init_addr: Address,
+        timeout: int | None = None
+    ) -> None:
+
         super().__init__(project)
         self.init_addr = init_addr
 
         self.target: Address | None = None
         self.previous_states: list[angr.SimState] | angr.SimState | None = None
+        self.timeout = timeout
 
     def set_step_target(self, target: Address) -> None:
         self.target = target
@@ -117,6 +124,8 @@ class StepSimulation(Simulator):
             self.previous_states = initial
 
         simulation = self.project.factory.simulation_manager(self.previous_states)
+        timeout_tech = angr.exploration_techniques.Timeout(self.timeout) # type: ignore [no-untyped-call]
+        simulation.use_technique(timeout_tech) # type: ignore [no-untyped-call]
         simulation.explore(find=self.target) # type: ignore [no-untyped-call]
         self.previous_states = simulation.found
 
@@ -266,7 +275,7 @@ class HookSimulation(Simulator):
 
 class BackwardSliceSimulation(Simulator):
     """
-    TODO: finish
+    TODO: This only works when init_addr and target are the begggining of a block
     """
     def __init__(self, project: angr.Project, init_addr: Address, target: Address) -> None:
         super().__init__(project)

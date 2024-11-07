@@ -9,7 +9,7 @@ from tests.conftest import BinaryBasedTestCase
 from dangr_rt.variables import Variable, Register, Literal, Memory, Deref
 from dangr_rt.variable_factory import VariableFactory
 from dangr_rt.dangr_types import Address, Argument
-from dangr_rt.jasm_findings import CaptureInfo
+from dangr_rt.jasm_findings import VariableMatch
 from dangr_rt.expression import Expression, Eq, Add, Mul
 
 VARS_ASM = 'vars.s'
@@ -19,7 +19,7 @@ MEM = 0x1a1a_e0e0
 @dataclass(kw_only=True)
 class VarFactTestCase(BinaryBasedTestCase):
     create_method_name: str
-    args: list[CaptureInfo | Argument | str | Address]
+    args: list[VariableMatch | Argument | str | Address]
     expected: Variable
     asm_filename: str = VARS_ASM
     files_directory: str = 'exprs'
@@ -45,17 +45,17 @@ class ExprTestCase(BinaryBasedTestCase):
 VARFACTORY_TESTS = [
     VarFactTestCase(
         create_method_name='create_from_capture',
-        args=[CaptureInfo('rdi', ADDR)],
+        args=[VariableMatch(name='a', value='rdi', addr=ADDR)],
         expected=lambda p: Register(p, 'rdi', ADDR)
     ),
     VarFactTestCase(
         create_method_name='create_from_capture',
-        args=[CaptureInfo(0x123, ADDR)],
+        args=[VariableMatch(name='test', value=0x123, addr=ADDR)],
         expected=lambda p: Literal(p, 0x123, ADDR)
     ),
     VarFactTestCase(
         create_method_name='create_from_capture',
-        args=[CaptureInfo(0x123, ADDR)],
+        args=[VariableMatch(name='test', value=0x123, addr=ADDR)],
         expected=lambda p: Literal(p, 0x123, ADDR)
     ),
     VarFactTestCase(
@@ -166,7 +166,7 @@ def test_variable_factory_err():
     p = angr.Project('/bin/ls', auto_load_libs=False)
     vf = VariableFactory(p)
     with pytest.raises(ValueError):
-        vf.create_from_capture(CaptureInfo(None, 0x40_0000))
+        vf.create_from_capture(VariableMatch(name='test', value=None, addr=0x40_0000))
 
     with pytest.raises(ValueError):
         vf.create_from_argument(Argument(0, ADDR, 8))

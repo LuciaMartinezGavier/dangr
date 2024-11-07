@@ -6,7 +6,7 @@ import angr
 from tests.conftest import BinaryBasedTestCase,fullpath
 
 from dangr_rt.dangr_analysis import DangrAnalysis
-from dangr_rt.jasm_findings import CaptureInfo, StructuralFinding
+from dangr_rt.jasm_findings import JasmMatch, VariableMatch, AddressMatch
 from dangr_rt.variables import Deref, Variable, Register, Literal
 from dangr_rt.expression import Eq
 from dangr_rt.simulator import ConcreteState
@@ -16,7 +16,7 @@ DANGR_DIR = 'dangr_analysis'
 
 @dataclass(kw_only=True)
 class SwBrkpTestCase(BinaryBasedTestCase):
-    struct_findings: list
+    jasm_matches: list
     expected_args: Callable[[angr.Project, list[ConcreteState]], bool]
     expected_ptr: Callable[angr.Project, Variable]
     expected_y: Callable[angr.Project, Variable]
@@ -31,14 +31,19 @@ SW_BRKP_TESTS = [
     SwBrkpTestCase(
         asm_filename='sw_breakpoint_xz_analysis.s',
         max_depth=2,
-        struct_findings=[StructuralFinding(
-            [0x40_002b, 0x40_0038],
-            {'cmp-address': 0x40_0038},
-            {
-                'ptr': CaptureInfo('rax', 0x40_002b),
-                'y': CaptureInfo(0xf223, 0x40_0038),
-                'z': CaptureInfo('eax', 0x40_0038),
-            }
+        jasm_matches=[JasmMatch(
+            match={
+                0x40_002b: "some_instruction",
+                0x40_0038: "some_instruction"
+            },
+            address_captures=[
+                AddressMatch(name='cmp-address', value=0x40_0038)
+            ],
+            variables=[
+                VariableMatch(name="ptr",value='rax', addr=0x40_002b),
+                VariableMatch('y', value=0xf223, addr=0x40_0038),
+                VariableMatch(name='z', value='eax', addr=0x40_0038)
+            ]
         )],
         expected_args=lambda p, args: args and all(
             a.get(Register(p, 'edx', 0x40_000c), 0) == 57904 for a in args
@@ -53,14 +58,17 @@ SW_BRKP_TESTS = [
     SwBrkpTestCase(
         asm_filename='sw_breakpoint_trivial.s',
         max_depth=2,
-        struct_findings=[StructuralFinding(
-            [0x40_0000, 0x40_0002],
-            {'cmp-address': 0x40_0002},
-            {
-                'ptr': CaptureInfo('rdi', 0x40_0000),
-                'y': CaptureInfo(0xfa1e0ff3, 0x40_0002),
-                'z': CaptureInfo('eax', 0x40_0002),
-            }
+        jasm_matches=[JasmMatch(
+            match={
+                0x40_0000: 'some_instruction',
+                0x40_0002: 'some_instruction'
+            },
+            address_captures=[AddressMatch(name='cmp-address', value=0x40_0002)],
+            variables=[
+                VariableMatch(name='ptr', value='rdi', addr=0x40_0000),
+                VariableMatch(name='y', value=0xfa1e0ff3, addr=0x40_0002),
+                VariableMatch(name='z', value='eax', addr=0x40_0002)
+            ],
         )],
         expected_args=lambda p, args: len(args) == 0,
 
@@ -73,14 +81,14 @@ SW_BRKP_TESTS = [
     SwBrkpTestCase(
         asm_filename='sw_breakpoint_branches.s',
         max_depth=5,
-        struct_findings=[StructuralFinding(
-            [0x40_0014, 0x40_0021],
-            {'cmp-address': 0x40_0021},
-            {
-                'ptr': CaptureInfo('rax', 0x40_0014),
-                'y': CaptureInfo('edx', 0x40_0021),
-                'z': CaptureInfo('eax', 0x40_0021),
-            }
+        jasm_matches=[JasmMatch(
+            match={0x40_0014:'ignore', 0x40_0021: 'ignore'},
+            address_captures=[AddressMatch(name='cmp-address', value=0x40_0021)],
+            variables=[
+                VariableMatch(name='ptr', value='rax', addr=0x40_0014),
+                VariableMatch(name='y',   value='edx', addr=0x40_0021),
+                VariableMatch(name='z',   value='eax', addr=0x40_0021)
+            ]
         )],
         expected_args=lambda p, args: args == [
             {
@@ -104,14 +112,14 @@ SW_BRKP_TESTS = [
     SwBrkpTestCase(
         binary=fullpath(DANGR_DIR, 'liblzma.so.5.6.1'),
         max_depth=1,
-        struct_findings=[StructuralFinding(
-            [0x40_d48e, 0x40_d490],
-            {'cmp-address': 0x40_d490},
-            {
-                'ptr': CaptureInfo('rdi', 0x40_d48e),
-                'y': CaptureInfo('edx', 0x40_d490),
-                'z': CaptureInfo('eax', 0x40_d490),
-            }
+        jasm_matches=[JasmMatch(
+            match={0x40_d48e:'', 0x40_d490:''},
+            address_captures=[AddressMatch(name='cmp-address', value=0x40_d490)],
+            variables=[
+                VariableMatch(name='ptr', value='rdi', addr=0x40_d48e),
+                VariableMatch(name='y', value='edx', addr=0x40_d490),
+                VariableMatch(name='z', value='eax', addr=0x40_d490)
+            ]
         )],
         expected_args=lambda p, args: [
             {Register(p, 'edx', 0x40_d45f): 57904},
@@ -141,17 +149,17 @@ def test_software_breakpoint_detection(test_case):
     dangr = DangrAnalysis(test_case.binary, {'max_depth': test_case.max_depth})
     vf = dangr.get_variable_factory()
 
-    for struc_find in test_case.struct_findings:
+    for struc_find in test_case.jasm_matches:
         dangr.set_finding(struc_find)
-        cmp_address = struc_find.address_captures["cmp-address"]
+        cmp_address = struc_find.addrmatch_from_name("cmp-address").value
 
-        ptr = vf.create_from_capture(struc_find.captured_regs['ptr'])
+        ptr = vf.create_from_capture(struc_find.varmatch_from_name('ptr'))
         assert ptr == test_case.expected_ptr(dangr.project)
 
-        y = vf.create_from_capture(struc_find.captured_regs['y'])
+        y = vf.create_from_capture(struc_find.varmatch_from_name('y'))
         assert y == test_case.expected_y(dangr.project)
 
-        z = vf.create_from_capture(struc_find.captured_regs['z'])
+        z = vf.create_from_capture(struc_find.varmatch_from_name('z'))
         assert z == test_case.expected_z(dangr.project)
 
         dx = Deref(ptr, reverse=True)

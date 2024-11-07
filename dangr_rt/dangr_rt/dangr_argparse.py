@@ -25,6 +25,15 @@ class DangrArgparse(argparse.ArgumentParser):
             help="Maximum depth for backward execution."
         )
 
+        self._add_dangr_argument(
+            "timeout",
+            "-t",
+            "--timeout",
+            type=int,
+            default=None,
+            help="Timeout for dangr simulation step."
+        )
+
     def _add_dangr_argument(self, config_key: str, *args: Any, **kwargs: Any) -> None:
         self._config[config_key] = str(kwargs.get('default'))
         super().add_argument(*args, **kwargs)

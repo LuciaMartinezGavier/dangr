@@ -42,9 +42,10 @@ class DangrSimulation:
         self,
         project: angr.Project,
         init_addr: Address,
+        timeout: int | None = None
     ) -> None:
 
-        self.simulator = StepSimulation(project, init_addr)
+        self.simulator = StepSimulation(project, init_addr, timeout)
         self.variables: list[Variable] = []
         self.constraints: list[Expression[AngrBool]] = []
 

@@ -15,7 +15,7 @@ class DependencyAnalyzer:
     A class for analyzing dependencies between variables in a binary program using a
     Dependency Dependency Graph (DDG).
     """
-    CALL_DEPTH_DEFAULT: Final = 10
+    CALL_DEPTH_DEFAULT: Final = 1
 
     def __init__(
         self, project: angr.Project,

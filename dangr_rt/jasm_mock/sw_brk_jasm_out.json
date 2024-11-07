@@ -1,0 +1,1053 @@
+[
+    {
+        "match": [
+            "5a11::add,[%rbp+0x10],%rax",
+            "5a15::sub,%rdx,%r14",
+            "5a18::cmp,%rax,%r14"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbp",
+                "5a11"
+            ],
+            "y": [
+                "rax",
+                "5a18"
+            ],
+            "z": [
+                "r14",
+                "5a18"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "5a18"
+        }
+    },
+    {
+        "match": [
+            "5ad9::add,[%rbx],%r14,",
+            "5adc::mov,0x2,%eax,",
+            "5ae1::mov,%r14,[%rbx],",
+            "5ae4::cmp,%rbp,%r1,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbx",
+                "5ad9"
+            ],
+            "y": [
+                "rbp",
+                "5ae4"
+            ],
+            "z": [
+                "r1",
+                "5ae4"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "5ae4"
+        }
+    },
+    {
+        "match": [
+            "7569::add,[%rbx+0xf0],%rax,",
+            "7570::mov,[%rsp+0x8],%r8,",
+            "7575::mov,%rax,%rcx,",
+            "7578::xor,%eax,%eax,",
+            "757a::cmp,%rax,%rdx,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbx",
+                "7569"
+            ],
+            "y": [
+                "rax",
+                "757a"
+            ],
+            "z": [
+                "rdx",
+                "757a"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "757a"
+        }
+    },
+    {
+        "match": [
+            "771f::add,[%rbp+%rsi*1+0x59],%cl,",
+            "7723::mov,%cl,[%rax+-0x1],",
+            "7726::mov,%cl,[%rbp+%rdx*1+0x59],",
+            "772a::cmp,%rax,%rbx,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbp",
+                "771f"
+            ],
+            "y": [
+                "rax",
+                "772a"
+            ],
+            "z": [
+                "rbx",
+                "772a"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "772a"
+        }
+    },
+    {
+        "match": [
+            "aa00::add,[%r14+0x30],%rdi,",
+            "aa04::mov,%rdx,[%rsp+0x8],",
+            "aa09::call,25e70,",
+            "aa0e::mov,[%rsp+0x8],%rdx,",
+            "aa13::cmp,%r12d,%eax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "r14",
+                "aa00"
+            ],
+            "y": [
+                "r12d",
+                "aa13"
+            ],
+            "z": [
+                "eax",
+                "aa13"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "aa13"
+        }
+    },
+    {
+        "match": [
+            "ab45::add,[%r15+0x28],%rdx,",
+            "ab49::movq,0x0,[%rdx],",
+            "ab50::cmp,0x1,%eax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "r15",
+                "ab45"
+            ],
+            "y": [
+                "0x1",
+                "ab50"
+            ],
+            "z": [
+                "eax",
+                "ab50"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "ab50"
+        }
+    },
+    {
+        "match": [
+            "aca9::add,[%r15+0x28],%rax,",
+            "acad::movq,0x0,[%rax],",
+            "acb4::mov,[%r15+0x4c],%edx,",
+            "acb8::mov,[%r15+0x38],%ecx,",
+            "acbc::cmp,%edx,%ecx,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "r15",
+                "aca9"
+            ],
+            "y": [
+                "edx",
+                "acbc"
+            ],
+            "z": [
+                "ecx",
+                "acbc"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "acbc"
+        }
+    },
+    {
+        "match": [
+            "addc::add,[%r12+0x108],%rax,",
+            "ade4::cmp,%rdx,%rax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "r12",
+                "addc"
+            ],
+            "y": [
+                "rdx",
+                "ade4"
+            ],
+            "z": [
+                "rax",
+                "ade4"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "ade4"
+        }
+    },
+    {
+        "match": [
+            "c88b::add,[%rbx+0x88],%rax,",
+            "c892::mov,%rax,[%rbx+0x88],",
+            "c899::cmp,0x1,%edx,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbx",
+                "c88b"
+            ],
+            "y": [
+                "0x1",
+                "c899"
+            ],
+            "z": [
+                "edx",
+                "c899"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "c899"
+        }
+    },
+    {
+        "match": [
+            "d48e::add,[%rdi],%eax,",
+            "d490::cmp,%edx,%eax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rdi",
+                "d48e"
+            ],
+            "y": [
+                "edx",
+                "d490"
+            ],
+            "z": [
+                "eax",
+                "d490"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "d490"
+        }
+    },
+    {
+        "match": [
+            "dcf0::add,[%rbp+0x18],%rax,",
+            "dcf4::movabs,0x7ffffffffffffffe,%rdx,",
+            "dcfe::cmp,%rax,%rdx,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbp",
+                "dcf0"
+            ],
+            "y": [
+                "rax",
+                "dcfe"
+            ],
+            "z": [
+                "rdx",
+                "dcfe"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "dcfe"
+        }
+    },
+    {
+        "match": [
+            "e298::add,[%rsp+0x38],%r10,",
+            "e29d::add,[%rsp+0x40],%r10,",
+            "e2a2::mov,[%rsp+0x18],%rax,",
+            "e2a7::cmp,%rax,%r10,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "e298"
+            ],
+            "y": [
+                "rax",
+                "e2a7"
+            ],
+            "z": [
+                "r10",
+                "e2a7"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "e2a7"
+        }
+    },
+    {
+        "match": [
+            "12fce::add,[%rsp+0x30],%rbp,",
+            "12fd3::cmp,0x628,%rbp,",
+            "12fda::ja,12efc,",
+            "12fe0::inc,%r12,",
+            "12fe3::cmp,0x4,%r12,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "12fce"
+            ],
+            "y": [
+                "0x4",
+                "12fe3"
+            ],
+            "z": [
+                "r12",
+                "12fe3"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "12fe3"
+        }
+    },
+    {
+        "match": [
+            "134c5::add,[%rsp+0x40],%rax,",
+            "134ca::mov,[%rsp+0x53],%dl,",
+            "134ce::and,0x48,%edx,",
+            "134d1::cmp,0x48,%dl,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "134c5"
+            ],
+            "y": [
+                "0x48",
+                "134d1"
+            ],
+            "z": [
+                "dl",
+                "134d1"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "134d1"
+        }
+    },
+    {
+        "match": [
+            "1387f::add,[%rsp+0x8],%rbx,",
+            "13884::mov,%rbx,%rsi,",
+            "13887::cmp,0x100a,%rbx,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "1387f"
+            ],
+            "y": [
+                "0x100a",
+                "13887"
+            ],
+            "z": [
+                "rbx",
+                "13887"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "13887"
+        }
+    },
+    {
+        "match": [
+            "1504e::add,[%rcx],%rax,",
+            "15051::cmp,%r12,%rax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rcx",
+                "1504e"
+            ],
+            "y": [
+                "r12",
+                "15051"
+            ],
+            "z": [
+                "rax",
+                "15051"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "15051"
+        }
+    },
+    {
+        "match": [
+            "15d68::add,[%rsp+0x70],%rbx,",
+            "15d6d::cmp,%r15,%rbx,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "15d68"
+            ],
+            "y": [
+                "r15",
+                "15d6d"
+            ],
+            "z": [
+                "rbx",
+                "15d6d"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "15d6d"
+        }
+    },
+    {
+        "match": [
+            "15e5e::add,[%rsp+0x68],%rsi,",
+            "15e63::add,%r8,%rsi,",
+            "15e66::mov,[%rsp+0x8],%rax,",
+            "15e6b::cmp,%rax,%rsi,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "15e5e"
+            ],
+            "y": [
+                "rax",
+                "15e6b"
+            ],
+            "z": [
+                "rsi",
+                "15e6b"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "15e6b"
+        }
+    },
+    {
+        "match": [
+            "1635e::add,[%rsp+0x28],%rdx,",
+            "16363::add,%rdi,%rdx,",
+            "16366::mov,[%r13+0x10],%esi,",
+            "1636a::cmp,%rdx,%rsi,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "1635e"
+            ],
+            "y": [
+                "rdx",
+                "1636a"
+            ],
+            "z": [
+                "rsi",
+                "1636a"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "1636a"
+        }
+    },
+    {
+        "match": [
+            "16e6b::add,[%rsp+0x325],%rbp,",
+            "16e73::cmp,0x3,%rbp,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "16e6b"
+            ],
+            "y": [
+                "0x3",
+                "16e73"
+            ],
+            "z": [
+                "rbp",
+                "16e73"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "16e73"
+        }
+    },
+    {
+        "match": [
+            "18301::add,[%r9+0x18],%r9,",
+            "18305::cmp,%r14,%r9,",
+            "18308::jae,182e9,",
+            "1830a::cmp,%r12,%r9,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "r9",
+                "18301"
+            ],
+            "y": [
+                "r12",
+                "1830a"
+            ],
+            "z": [
+                "r9",
+                "1830a"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "1830a"
+        }
+    },
+    {
+        "match": [
+            "183d6::add,[%rsp+0x68],%rax,",
+            "183db::cmp,%r12,%rax,",
+            "183de::jb,18445,",
+            "183e0::cmp,%r14,%rax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "183d6"
+            ],
+            "y": [
+                "r14",
+                "183e0"
+            ],
+            "z": [
+                "rax",
+                "183e0"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "183e0"
+        }
+    },
+    {
+        "match": [
+            "19a11::add,[%rsp+0x38],%r14,",
+            "19a16::cmp,%rbx,%r14,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "19a11"
+            ],
+            "y": [
+                "rbx",
+                "19a16"
+            ],
+            "z": [
+                "r14",
+                "19a16"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "19a16"
+        }
+    },
+    {
+        "match": [
+            "19ac9::add,[%rsp+0x30],%rsi,",
+            "19ace::mov,%rax,[%rsp+0x18],",
+            "19ad3::cmp,%rbx,%rsi,",
+            "19ad6::jae,19a11,",
+            "19adc::cmp,0x5,%ecx,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "19ac9"
+            ],
+            "y": [
+                "0x5",
+                "19adc"
+            ],
+            "z": [
+                "ecx",
+                "19adc"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "19adc"
+        }
+    },
+    {
+        "match": [
+            "19bb1::add,[%rsp+0x88],%rax,",
+            "19bb9::add,[%rsp+0x90],%rax,",
+            "19bc1::lea,[%rax+-0x18],%rdx,",
+            "19bc5::cmp,%r13,%rdx,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "19bb1"
+            ],
+            "y": [
+                "r13",
+                "19bc5"
+            ],
+            "z": [
+                "rdx",
+                "19bc5"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "19bc5"
+        }
+    },
+    {
+        "match": [
+            "19bf4::add,[%rsp+0x90],%rsi,",
+            "19bfc::inc,%ecx,",
+            "19bfe::jmp,19ad3,",
+            "19c03::cmp,0x147,%eax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "19bf4"
+            ],
+            "y": [
+                "0x147",
+                "19c03"
+            ],
+            "z": [
+                "eax",
+                "19c03"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "19c03"
+        }
+    },
+    {
+        "match": [
+            "1cd14::add,[%rsp+0x48],%rsi,",
+            "1cd19::cmp,0x109,%eax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "1cd14"
+            ],
+            "y": [
+                "0x109",
+                "1cd19"
+            ],
+            "z": [
+                "eax",
+                "1cd19"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "1cd19"
+        }
+    },
+    {
+        "match": [
+            "1e151::add,[%rbx],%rax,",
+            "1e154::add,[%rbx+0x30],%rax,",
+            "1e158::cmp,%r13,%rax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbx",
+                "1e151"
+            ],
+            "y": [
+                "r13",
+                "1e158"
+            ],
+            "z": [
+                "rax",
+                "1e158"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "1e158"
+        }
+    },
+    {
+        "match": [
+            "1e315::add,[%rsp+0x8],%rax,",
+            "1e31a::add,[%rsp+0x10],%rax,",
+            "1e31f::cmp,%r14,%rax,",
+            "1e322::jb,1e329,",
+            "1e324::cmp,%rax,%rbx,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "1e315"
+            ],
+            "y": [
+                "rax",
+                "1e324"
+            ],
+            "z": [
+                "rbx",
+                "1e324"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "1e324"
+        }
+    },
+    {
+        "match": [
+            "1e4cb::add,[%rbx+0x38],%rax,",
+            "1e4cf::add,[%rbx],%rax,",
+            "1e4d2::cmp,%r13,%rax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbx",
+                "1e4cb"
+            ],
+            "y": [
+                "r13",
+                "1e4d2"
+            ],
+            "z": [
+                "rax",
+                "1e4d2"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "1e4d2"
+        }
+    },
+    {
+        "match": [
+            "1eb22::add,[%rbx],%rax,",
+            "1eb25::add,[%rbx+0x8],%rax,",
+            "1eb29::cmp,%rax,%r13,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbx",
+                "1eb22"
+            ],
+            "y": [
+                "rax",
+                "1eb29"
+            ],
+            "z": [
+                "r13",
+                "1eb29"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "1eb29"
+        }
+    },
+    {
+        "match": [
+            "1fc92::add,[%rbx],%rax,",
+            "1fc95::add,[%rbx+0x8],%rax,",
+            "1fc99::cmp,%rax,%r13,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbx",
+                "1fc92"
+            ],
+            "y": [
+                "rax",
+                "1fc99"
+            ],
+            "z": [
+                "r13",
+                "1fc99"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "1fc99"
+        }
+    },
+    {
+        "match": [
+            "227c0::add,[%rbx+0x58],%r15,",
+            "227c4::mov,%r15,[%rbx+0x58],",
+            "227c8::cmp,0x1,%eax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbx",
+                "227c0"
+            ],
+            "y": [
+                "0x1",
+                "227c8"
+            ],
+            "z": [
+                "eax",
+                "227c8"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "227c8"
+        }
+    },
+    {
+        "match": [
+            "23c09::add,[%rsp+0x180],%rdi,",
+            "23c11::jmp,23a8e,",
+            "23c16::cmp,0x147,%eax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "23c09"
+            ],
+            "y": [
+                "0x147",
+                "23c16"
+            ],
+            "z": [
+                "eax",
+                "23c16"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "23c16"
+        }
+    },
+    {
+        "match": [
+            "23d04::add,[%rsp+0x180],%rdi,",
+            "23d0c::cmp,%rax,%rdi,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "23d04"
+            ],
+            "y": [
+                "rax",
+                "23d0c"
+            ],
+            "z": [
+                "rdi",
+                "23d0c"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "23d0c"
+        }
+    },
+    {
+        "match": [
+            "2437f::add,[%rax+0x14],%edx,",
+            "24382::cmp,0xffffffff,%edx,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rax",
+                "2437f"
+            ],
+            "y": [
+                "0xffffffff",
+                "24382"
+            ],
+            "z": [
+                "edx",
+                "24382"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "24382"
+        }
+    },
+    {
+        "match": [
+            "24551::add,[%rbx+0x14],%edx,",
+            "24554::cmp,0x5,%edx,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbx",
+                "24551"
+            ],
+            "y": [
+                "0x5",
+                "24554"
+            ],
+            "z": [
+                "edx",
+                "24554"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "24554"
+        }
+    },
+    {
+        "match": [
+            "2551d::add,[%rsi],%rdx,",
+            "25520::add,[%rsi+0x8],%rax,",
+            "25524::mov,%rdx,[%rsi],",
+            "25527::cmp,0x3b9ac9ff,%rax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsi",
+                "2551d"
+            ],
+            "y": [
+                "0x3b9ac9ff",
+                "25527"
+            ],
+            "z": [
+                "rax",
+                "25527"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "25527"
+        }
+    },
+    {
+        "match": [
+            "261e2::add,[%rbx],%r12,",
+            "261e5::cmp,0x8,%eax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbx",
+                "261e2"
+            ],
+            "y": [
+                "0x8",
+                "261e5"
+            ],
+            "z": [
+                "eax",
+                "261e5"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "261e5"
+        }
+    },
+    {
+        "match": [
+            "28c62::add,[%rsp+0x70],%rdx,",
+            "28c67::add,[%rsp+0x78],%rax,",
+            "28c6c::mov,%rdx,[%rsp+0x70],",
+            "28c71::cmp,0x3b9ac9ff,%rax,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rsp",
+                "28c62"
+            ],
+            "y": [
+                "0x3b9ac9ff",
+                "28c71"
+            ],
+            "z": [
+                "rax",
+                "28c71"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "28c71"
+        }
+    },
+    {
+        "match": [
+            "29bdc::add,[%rbp+0x1a8],%rbx,",
+            "29be3::lea,[%rbx+0x1b8],%rdi,",
+            "29bea::call,4340,",
+            "29bef::mov,[%rbp+0x1b4],%eax,",
+            "29bf5::cmp,%eax,%r13d,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbp",
+                "29bdc"
+            ],
+            "y": [
+                "eax",
+                "29bf5"
+            ],
+            "z": [
+                "r13d",
+                "29bf5"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "29bf5"
+        }
+    },
+    {
+        "match": [
+            "29cbc::add,[%rbp+0x1d0],%rbx,",
+            "29cc3::lea,[%rbx+0x190],%rdi,",
+            "29cca::call,4340,",
+            "29ccf::mov,[%rbp+0x1c8],%eax,",
+            "29cd5::cmp,%eax,%r13d,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbp",
+                "29cbc"
+            ],
+            "y": [
+                "eax",
+                "29cd5"
+            ],
+            "z": [
+                "r13d",
+                "29cd5"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "29cd5"
+        }
+    },
+    {
+        "match": [
+            "29dbc::add,[%rbp+0x1a8],%rbx,",
+            "29dc3::lea,[%rbx+0x1b8],%rdi,",
+            "29dca::call,4340,",
+            "29dcf::mov,[%rbp+0x1b4],%eax,",
+            "29dd5::cmp,%eax,%r12d,"
+        ],
+        "name-captures": {
+            "ptr": [
+                "rbp",
+                "29dbc"
+            ],
+            "y": [
+                "eax",
+                "29dd5"
+            ],
+            "z": [
+                "r12d",
+                "29dd5"
+            ]
+        },
+        "address-captures": {
+            "cmp-address": "29dd5"
+        }
+    }
+]
