@@ -34,6 +34,35 @@ class DangrArgparse(argparse.ArgumentParser):
             help="Timeout for dangr simulation step."
         )
 
+        self._add_dangr_argument(
+            "cfg_call_depth",
+            "-c",
+            "--cfg-call-depth",
+            type=int,
+            default=None,
+            help="How deep in the call stack to analyze dependencies"
+        )
+
+        self._add_dangr_argument(
+            "cfg_max_steps",
+            "-s",
+            "--cfg-max-steps",
+            type=int,
+            default=None,
+            help="The maximum number of basic blocks to recover forthe longest path"
+                 " when constructing the cfg for the dependency analysis."
+        )
+
+        self._add_dangr_argument(
+            "cfg_resolve_indirect_jumps",
+            "-j",
+            "--cfg-resolve-indirect-jumps",
+            type=int,
+            default=None,
+            help="Whether to enable the indirect jump resolvers for resolving indirect jumps"
+                 "for dependency analysis"
+        )
+
     def _add_dangr_argument(self, config_key: str, *args: Any, **kwargs: Any) -> None:
         self._config[config_key] = str(kwargs.get('default'))
         super().add_argument(*args, **kwargs)

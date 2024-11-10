@@ -290,7 +290,7 @@ class Literal(Variable):
     @override
     def size(self) -> int:
         lit_block = self.project.factory.block(self.ref_addr)
-        return int(lit_block.capstone.insns[0].insn.imm_size)
+        return int(next(op.size for op in lit_block.capstone.insns[0].insn.operands))
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Literal):

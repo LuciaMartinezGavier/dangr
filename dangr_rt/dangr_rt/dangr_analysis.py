@@ -29,10 +29,18 @@ class DangrAnalysis: # pylint: disable=too-many-instance-attributes
         # helper modules init
         self.simulator: DangrSimulation | None = None
         self.variable_factory = VariableFactory(self.project)
-        self.dependency_analyzer = DependencyAnalyzer(self.project, self.variable_factory)
-        self.arguments_analyzer = ArgumentsAnalyzer(self.project,
-                                                    self.cfg,
-                                                    self.config.get('max_depth', None))
+        self.dependency_analyzer = DependencyAnalyzer(
+            self.project,
+            self.variable_factory,
+            call_depth=self.config.get('cfg_call_depth', None),
+            max_steps=self.config.get('cfg_max_steps', None),
+            resolve_indirect_jumps=self.config.get('cfg_resolve_indirect_jumps', None)
+        )
+        self.arguments_analyzer = ArgumentsAnalyzer(
+            self.project,
+            self.cfg,
+            self.config.get('max_depth', None)
+        )
 
     def _jasm_match_set(self) -> None:
         """

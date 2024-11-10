@@ -4,3 +4,7 @@ tmp
 .coverage
 .mypy_cache
 .pytest_cache
+TODO.md
+writing
+design
+dist

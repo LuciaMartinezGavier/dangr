@@ -20,12 +20,17 @@ class DependencyAnalyzer:
     def __init__(
         self, project: angr.Project,
         variable_factory: VariableFactory,
-        call_depth: int | None = None
+        call_depth: int | None = None,
+        max_steps: int | None = None,
+        resolve_indirect_jumps: bool | None = None
     ):
         self.project = project
         self.ddg: DiGraph | None = None
-        self.call_depth = call_depth or self.CALL_DEPTH_DEFAULT
         self.variable_factory = variable_factory
+
+        self.call_depth = call_depth or self.CALL_DEPTH_DEFAULT
+        self.max_steps = max_steps
+        self.resolve_indirect_jumps = resolve_indirect_jumps
 
     def create_dependency_graph(self, start_address: Address) -> None:
         """
@@ -39,6 +44,8 @@ class DependencyAnalyzer:
             starts=[start_address],
             call_depth=self.call_depth,
             state_add_options=angr.sim_options.refs | {angr.sim_options.NO_CROSS_INSN_OPT},
+            resolve_indirect_jumps=self.resolve_indirect_jumps,
+            max_steps=self.max_steps
         )
 
         self.ddg = self.project.analyses.DDG(cfg=cfg, start=start_address)

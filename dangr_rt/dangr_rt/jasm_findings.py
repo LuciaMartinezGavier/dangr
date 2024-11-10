@@ -5,6 +5,7 @@ JASM has support for some functionalities I need
 which is already in progres but not finished.
 """
 
+import os
 from typing import Any, cast
 import json
 from dataclasses import dataclass
@@ -21,7 +22,9 @@ def load_json(file_path: str) -> dict[str, Any] | None:
     except FileNotFoundError:
         print("File not found:", file_path)
         return None
-
+    except IsADirectoryError:
+        print("Invalid file", file_path)
+        return None
 
 @dataclass
 class VariableMatch:
@@ -88,7 +91,7 @@ class JasmMatch:
 def cast_var_value(var_value: str | int) -> int | str:
     try:
         return int(var_value, 16)
-    except Exception:
+    except ValueError:
         return var_value
 
 def _parse_jasm_output(jasm_out: list[dict[str, Any]]) -> list[JasmMatch]:
@@ -126,13 +129,14 @@ def _parse_jasm_output(jasm_out: list[dict[str, Any]]) -> list[JasmMatch]:
     return all_matches
 
 def _run_jasm(jasm_pattern: str, binary_path: str) -> list[JasmMatch]:
-    path_to_mock = "jasm_mock/"
+    path_to_mock = os.path.join(os.path.dirname(__file__), "jasm_mock")
     _ = binary_path
     match jasm_pattern:
         case 'software_breakpoint_pattern':
-            path_to_mock += "sw_brk_jasm_out.json"
+            path_to_mock = os.path.join(path_to_mock, "sw_brk_jasm_out.json")
         case _:
-            print("not implemented")
+            raise ValueError("We are still working on this! "
+            "Try using 'software_breakpoint_pattern' to get a mocked answer")
 
     jasm_match_uparsed = load_json(path_to_mock)
     return _parse_jasm_output(jasm_match_uparsed)
