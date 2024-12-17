@@ -1,7 +1,7 @@
-import pytest
 from dataclasses import dataclass
 from typing import Callable
-from itertools import chain
+import pytest
+
 import angr
 from tests.conftest import BinaryBasedTestCase,fullpath
 
@@ -147,25 +147,24 @@ def test_software_breakpoint_detection(test_case):
     the comparison is True if the contents of the memory are the ENDBR64 opcode.
     """
     dangr = DangrAnalysis(test_case.binary, {'max_depth': test_case.max_depth})
-    vf = dangr.get_variable_factory()
 
     for struc_find in test_case.jasm_matches:
         dangr.set_finding(struc_find)
         cmp_address = struc_find.addrmatch_from_name("cmp-address").value
 
-        ptr = vf.create_from_capture(struc_find.varmatch_from_name('ptr'))
+        ptr = dangr.create_var_from_capture(struc_find.varmatch_from_name('ptr'))
         assert ptr == test_case.expected_ptr(dangr.project)
 
-        y = vf.create_from_capture(struc_find.varmatch_from_name('y'))
+        y = dangr.create_var_from_capture(struc_find.varmatch_from_name('y'))
         assert y == test_case.expected_y(dangr.project)
 
-        z = vf.create_from_capture(struc_find.varmatch_from_name('z'))
+        z = dangr.create_var_from_capture(struc_find.varmatch_from_name('z'))
         assert z == test_case.expected_z(dangr.project)
 
         dx = Deref(ptr, reverse=True)
         assert dx == test_case.expected_dx(dangr.project)
 
-        dangr.add_variables([y,z,dx])
+        dangr.add_variables([y,z,dx, ptr])
 
         assert (dangr.depends(dx, y) or dangr.depends(dx, z))
 

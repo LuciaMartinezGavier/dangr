@@ -17,6 +17,15 @@ class DangrArgparse(argparse.ArgumentParser):
         self._config: dict[str, Any] = {}
 
         self._add_dangr_argument(
+            "reverse",
+            "-r",
+            "--reverse",
+            type=bool,
+            default=None,
+            help="Whether or not to reverse memory, by default this depends on the binary arch."
+        )
+
+        self._add_dangr_argument(
             "max_depth",
             "-d",
             "--max-depth",
@@ -32,6 +41,17 @@ class DangrArgparse(argparse.ArgumentParser):
             type=int,
             default=None,
             help="Timeout for dangr simulation step."
+        )
+
+        self._add_dangr_argument(
+            "num_finds",
+            "-n",
+            "--num-finds",
+            type=int,
+            default=None,
+            help="Number of findings expected for each dangr simulation step. "
+                "If this number is reached, the simulation will stop, "
+                "otherwise it will excetute until there are no more active states"
         )
 
         self._add_dangr_argument(
@@ -69,7 +89,7 @@ class DangrArgparse(argparse.ArgumentParser):
 
     def dangr_parse_args(
         self,
-        args: Sequence[str] | None,
+        args: Sequence[str] | None = None,
         namespace: argparse.Namespace | None = None
     ) -> argparse.Namespace:
         """

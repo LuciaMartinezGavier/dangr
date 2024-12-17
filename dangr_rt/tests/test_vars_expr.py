@@ -67,17 +67,7 @@ VARFACTORY_TESTS = [
         create_method_name='create_from_argument',
         args=[Argument(1, ADDR, 4)],
         expected=lambda p: Register(p,'edi', ADDR)
-    ),
-    VarFactTestCase(
-        create_method_name='create_from_angr_name',
-        args=['reg_rdx_507_64', ADDR],
-        expected=lambda p: Register(p, 'rdx', ADDR)
-    ),
-    VarFactTestCase(
-        create_method_name='create_from_angr_name',
-        args=['mem_ffffe00000000000_17_32', ADDR],
-        expected=lambda p: Memory(p, 0xffffe00000000000, 4, ADDR)
-    ),
+    )
 ]
 
 VAR_TESTS = [
@@ -112,7 +102,7 @@ EXPR_TESTS = [
         expr=lambda p: Register(p, 'rdi', 0x40_0016),
         expected_expr="<BV64 reg_rdi_[0-9]+_64>",
         expected_addr=0x40_0016,
-        set_ref_state=lambda expr, sts: expr.set_ref_states(sts)
+        set_ref_state=lambda expr, st: expr.set_ref_state(st)
     ),
     ExprTestCase(
         expr=lambda p: Eq(
@@ -122,9 +112,9 @@ EXPR_TESTS = [
         expected_expr="<Bool reg_rdi_[0-9]+_64 == Reverse\(mem_[0-9a-f]+_[0-9]+_64\)>",
 
         expected_addr=0x40_0016,
-        set_ref_state=lambda expr, sts: [
-            expr.lhs.set_ref_states(sts),
-            expr.rhs.set_ref_states(sts)
+        set_ref_state=lambda expr, st: [
+            expr.lhs.set_ref_state(st),
+            expr.rhs.set_ref_state(st)
         ]
     ),
     ExprTestCase(
@@ -135,9 +125,9 @@ EXPR_TESTS = [
         expected_expr="<BV64 reg_rdi_[0-9]+_64 \+ reg_rax_[0-9]+_64>",
 
         expected_addr=0x40_001a,
-        set_ref_state=lambda expr, sts: [
-            expr.lhs.set_ref_states(sts),
-            expr.rhs.set_ref_states(sts)
+        set_ref_state=lambda expr, st: [
+            expr.lhs.set_ref_state(st),
+            expr.rhs.set_ref_state(st)
         ]
     ),
     ExprTestCase(
@@ -147,9 +137,9 @@ EXPR_TESTS = [
         ),
         expected_expr=f'<BV32 Reverse\(mem_1a1ae0e0_[0-9]+_32\) \* reg_eax_[0-9]+_32>',
         expected_addr=0x40_001e,
-        set_ref_state=lambda expr, sts: [
-            expr.lhs.set_ref_states(sts),
-            expr.rhs.set_ref_states(sts)
+        set_ref_state=lambda expr, st: [
+            expr.lhs.set_ref_state(st),
+            expr.rhs.set_ref_state(st)
         ]
     )
 ]
@@ -171,8 +161,6 @@ def test_variable_factory_err():
     with pytest.raises(ValueError):
         vf.create_from_argument(Argument(0, ADDR, 8))
 
-    with pytest.raises(ValueError):
-        vf.create_from_angr_name('lit_12345_32', ADDR)
 
 
 @pytest.mark.parametrize("test_case", VAR_TESTS, indirect=True)
@@ -184,9 +172,6 @@ def test_variable(test_case):
     N: Final = 5
     VALUE: Final = 123
 
-    with pytest.raises(ValueError):
-        var.dependencies(vf)
-
     assert f'{var!r}' == test_case.expected_repr
 
     other = deepcopy(var)
@@ -195,39 +180,37 @@ def test_variable(test_case):
     if isinstance(var, Deref):
         var.base.project = other.base.project
 
-    other.set_ref_states([default_state])
+    other.set_ref_state(default_state)
     assert var == other
     assert var != test_case.expected_neq(p)
 
     assert var.size() == test_case.expected_size
 
-    var.set_ref_states([default_state]*N)
-    assert set(var.angr_repr().keys()) == var.reference_states
+    var.set_ref_state(default_state)
 
     if isinstance(var, Literal):
         with pytest.raises(ValueError):
             var.set_value(VALUE)
     else:
-        for s in var.reference_states:
-            var.set_value(VALUE)
-            assert VALUE == var.evaluate()[s]
+        var.set_value(VALUE)
+        assert VALUE == var.evaluate()
 
 @pytest.mark.parametrize("test_case", EXPR_TESTS, indirect=True)
 def test_expression(test_case):
     p = angr.Project(test_case.binary, auto_load_libs=False)
     expr = test_case.expr(p)
 
-    test_case.set_ref_state(expr, [p.factory.blank_state()])
+    test_case.set_ref_state(expr, p.factory.blank_state())
 
-    assert all(re.search(test_case.expected_expr, str(e)) for e in expr.get_expr())
+    assert re.search(test_case.expected_expr, str(expr.get_expr()))
     assert expr.ref_addr == test_case.expected_addr
 
 def test_expression_err():
     p = angr.Project('/bin/ls', auto_load_libs=False)
     reg1 = Register(p, 'rdi', 0x40_0016)
-    reg1.set_ref_states([p.factory.blank_state()])
+    reg1.set_ref_state(p.factory.blank_state())
     reg2 = Register(p, 'eax', 0x40_001e)
-    reg2.set_ref_states([p.factory.blank_state()])
+    reg2.set_ref_state(p.factory.blank_state())
 
     with pytest.raises(claripy.errors.ClaripyOperationError):
         Mul(reg1, reg2).get_expr()

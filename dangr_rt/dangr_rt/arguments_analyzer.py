@@ -22,7 +22,7 @@ class ArgumentsAnalyzer:
         self.project: Final = project
         self.cfg: Final = cfg
         self.max_depth = max_depth
-        self.args_info: dict[RegOffset, RegInfo | None] = {}
+        self._args_info: dict[RegOffset, RegInfo | None] = {}
 
     def get_fn_args(self, fn_addr: Address) -> Sequence[Register]:
         """
@@ -34,7 +34,7 @@ class ArgumentsAnalyzer:
         HookSimulation(
             project=self.project,
             init_addr=fn_addr,
-            stop=lambda sts: all(self.args_info.values()),
+            stop=lambda sts: all(self._args_info.values()),
             event_type='reg_read',
             action=self._record_reg_read,
             when=angr.BP_BEFORE,
@@ -44,7 +44,7 @@ class ArgumentsAnalyzer:
 
     def _create_arg_regs(self) -> Sequence[Register]:
         found_args = []
-        for offset, found_info in self.args_info.items():
+        for offset, found_info in self._args_info.items():
             if found_info is None:
                 raise ValueError("Argument couldn't be found")
 
@@ -71,17 +71,17 @@ class ArgumentsAnalyzer:
     def _init_args_info(self, args: list[SimRegArg]) -> None:
         for arg in args:
             offset: int = arg.check_offset(self.project.arch) # type: ignore [no-untyped-call]
-            self.args_info[offset] = None
+            self._args_info[offset] = None
 
     def _record_reg_read(self, state: angr.SimState) -> None:
         """Record the instruction address of the first read of the register."""
         addr = self._record_addr(state)
         offset = self._record_offset(state)
 
-        if offset in self.args_info and self.args_info[offset] is None:
+        if offset in self._args_info and self._args_info[offset] is None:
             block = state.block(addr) # type: ignore [no-untyped-call]
             size = block.capstone.insns[0].insn.operands[0].size
-            self.args_info[offset] = RegInfo(size, addr)
+            self._args_info[offset] = RegInfo(size, addr)
 
     def _record_addr(self, state: angr.SimState) -> Address:
         if hasattr(state.inspect, 'instruction'):
@@ -124,8 +124,8 @@ class ArgumentsAnalyzer:
     def _get_args_values(self, args: Sequence[Register], state: angr.SimState) -> ConcreteState:
         concrete_state: ConcreteState = {}
         for arg in args:
-            arg.set_ref_states([state])
+            arg.set_ref_state(state)
 
             if arg.is_concrete():
-                concrete_state[arg] = arg.evaluate()[state]
+                concrete_state[arg] = arg.evaluate()
         return concrete_state

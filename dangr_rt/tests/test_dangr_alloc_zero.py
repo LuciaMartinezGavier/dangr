@@ -53,13 +53,12 @@ def test_software_breakpoint_detection(test_case):
     size 0.
     """
     dangr = DangrAnalysis(test_case.binary, {})
-    vf = dangr.get_variable_factory()
 
     for struc_find in test_case.jasm_matches:
         dangr.set_finding(struc_find)
         alloc_call = struc_find.addrmatch_from_name("alloc_call").value
 
-        size = vf.create_from_argument(Argument(1, alloc_call, 4))
+        size = dangr.create_var_from_argument(Argument(1, alloc_call, 4))
         assert size == test_case.expected_size(dangr.project)
 
         dangr.add_variables([size])

@@ -5,7 +5,6 @@ import angr
 from tests.conftest import BinaryBasedTestCase
 from dangr_rt.dependency_analyzer import DependencyAnalyzer
 from dangr_rt.variables import Variable, Register, Memory, Deref, Literal
-from dangr_rt.variable_factory import VariableFactory
 from dangr_rt.dangr_types import Address
 
 @dataclass(kw_only=True)
@@ -148,8 +147,7 @@ DEP_ANALYZER_TESTS: Final = [
 def test_check_dependency(test_case):
     """Test checking a dependency between variables."""
     project = angr.Project(test_case.binary, auto_load_libs=False)
-    variable_factory = VariableFactory(project)
-    analyzer = DependencyAnalyzer(project, variable_factory, call_depth=test_case.call_depth)
+    analyzer = DependencyAnalyzer(project, call_depth=test_case.call_depth)
     analyzer.create_dependency_graph(test_case.func_addr)
 
     assert analyzer.ddg is not None

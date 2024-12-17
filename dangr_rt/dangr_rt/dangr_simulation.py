@@ -1,8 +1,10 @@
 from collections import namedtuple
+from copy import deepcopy
+from typing import Final
 import angr
 
 from dangr_rt.variables import Variable
-from dangr_rt.simulator import StepSimulation, ConcreteState
+from dangr_rt.simulator import ForwardSimulation, ConcreteState, initialize_state
 from dangr_rt.dangr_types import Address, AngrBool
 from dangr_rt.expression import Expression
 
@@ -38,14 +40,16 @@ class Checkpoints(dict[Address, CheckpointGroup]):
 
 
 class DangrSimulation:
+    DEFAULT_NUM_FINDS: Final[int] = 64
+
     def __init__(
         self,
         project: angr.Project,
-        init_addr: Address,
+        num_finds: int | None = None,
         timeout: int | None = None
     ) -> None:
-
-        self.simulator = StepSimulation(project, init_addr, timeout)
+        self.project = project
+        self.simulator = ForwardSimulation(project, num_finds or self.DEFAULT_NUM_FINDS, timeout)
         self.variables: list[Variable] = []
         self.constraints: list[Expression[AngrBool]] = []
 
@@ -55,47 +59,66 @@ class DangrSimulation:
     def add_constraints(self, constraints: list[Expression[AngrBool]]) -> None:
         self.constraints.extend(constraints)
 
+    def remove_constraints(self) -> None:
+        self.constraints = []
+
     def simulate(
         self,
         target: Address,
-        init_states: list[ConcreteState] | None = None
+        init_addr: Address,
+        initial_values_list: list[ConcreteState] | None = None
     ) -> list[angr.SimState]:
         """
-        Symbolic execute the current function until the target is found
+        Symbolic execute adding the constraints until reaching que target
         """
         checkpoints = self._create_checkpoints(target)
 
-        for addr, action_elem in checkpoints.items():
-            found_states: list[angr.SimState] = []
-            self.simulator.set_step_target(target=addr)
+        if not initial_values_list:
+            blank_state = initialize_state(self.project, init_addr)
+            found_state = self._rec_simulate(blank_state, 0, checkpoints)
+            return found_state
 
-            if not init_states:
-                found_states.extend(self.simulator.simulate())
-            else:
-                for init_state in init_states:
-                    self.simulator.set_initial_values(init_state)
-                    found_states.extend(self.simulator.simulate())
-
-            self._set_states_to_vars(action_elem.variables, found_states)
-            self._add_constraints_to_states(action_elem.constraints, found_states)
+        found_states = []
+        for initial_values in initial_values_list:
+            init_state = initialize_state(self.project, init_addr, initial_values)
+            found_states.extend(self._rec_simulate(init_state, 0, checkpoints))
 
         return found_states
 
-    def _set_states_to_vars(self, variables: list[Variable], states: list[angr.SimState]) -> None:
-        for var in variables:
-            var.set_ref_states(states)
+    def _rec_simulate(self, active_state, checkpoint_idx: int, checkpoints: Checkpoints):
 
-    def _add_constraints_to_states(
+        if checkpoint_idx >= len(checkpoints.items()):
+            return [active_state]
+
+        target, action_elem = list(checkpoints.sorted().items())[checkpoint_idx]
+        next_starts = self.simulator.simulate(active_state, target)
+        found_states = []
+        for next_start in next_starts:
+
+            self._set_state_to_vars(action_elem.variables, next_start)
+
+            self._add_constraints_to_state(action_elem.constraints, next_start)
+
+            if not next_start.satisfiable():
+                continue
+
+            found_states.extend(
+                self._rec_simulate(next_start, checkpoint_idx+1, deepcopy(checkpoints))
+            )
+
+        return found_states
+
+    def _set_state_to_vars(self, variables: list[Variable], state: angr.SimState) -> None:
+        for var in variables:
+            var.set_ref_state(state)
+
+    def _add_constraints_to_state(
         self,
         constraints: list[Expression[AngrBool]],
-        states: list[angr.SimState]
+        state: angr.SimState
     ) -> None:
-
         for constraint in constraints:
-            for expr in constraint.get_expr():
-                for state in states:
-                    state.solver.add(expr)
-
+            state.solver.add(constraint.get_expr())
 
     def _create_checkpoints(self, target: Address) -> Checkpoints:
         checkpoints = Checkpoints()

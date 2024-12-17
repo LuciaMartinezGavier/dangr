@@ -1,7 +1,7 @@
 from typing import Final, Any, Sequence
 import angr
-from dangr_rt.jasm_findings import JasmMatch
-from dangr_rt.dangr_types import Address, Path, AngrBool
+from dangr_rt.jasm_findings import JasmMatch, VariableMatch
+from dangr_rt.dangr_types import Address, Path, AngrBool, Argument
 from dangr_rt.variables import Variable, Register
 from dangr_rt.variable_factory import VariableFactory
 from dangr_rt.expression import Expression
@@ -31,7 +31,6 @@ class DangrAnalysis: # pylint: disable=too-many-instance-attributes
         self.variable_factory = VariableFactory(self.project)
         self.dependency_analyzer = DependencyAnalyzer(
             self.project,
-            self.variable_factory,
             call_depth=self.config.get('cfg_call_depth', None),
             max_steps=self.config.get('cfg_max_steps', None),
             resolve_indirect_jumps=self.config.get('cfg_resolve_indirect_jumps', None)
@@ -68,13 +67,25 @@ class DangrAnalysis: # pylint: disable=too-many-instance-attributes
         self.current_function = self._find_function()
         self.simulator = DangrSimulation(
             project=self.project,
-            init_addr=self.current_function,
+            num_finds=self.config.get('num_finds', None),
             timeout=self.config.get('timeout', None)
         )
         self.dependency_analyzer.create_dependency_graph(self.current_function)
 
-    def get_variable_factory(self) -> VariableFactory:
-        return self.variable_factory
+    def create_var_from_capture(self, var: VariableMatch) -> Variable:
+        """
+        Creates a Variable from the JASM's match info.
+        """
+        return self.variable_factory.create_from_capture(var)
+
+    def create_var_from_argument(self, argument: Argument) -> Variable:
+        """
+        Creates a Variable from a function argument based on its index.
+        """
+        return self.variable_factory.create_from_argument(argument)
+
+    def create_deref(self, base: Variable, idx: int = 0) -> Variable:
+        return self.variable_factory.create_deref(base, idx, self.config.get('reverse', None))
 
     def _find_function(self) -> Address:
         """
@@ -128,7 +139,9 @@ class DangrAnalysis: # pylint: disable=too-many-instance-attributes
         init_states: list[ConcreteState] | None = None
     ) -> list[angr.SimState]:
         self._jasm_match_set()
-        return self.simulator.simulate(target, init_states) # type: ignore [union-attr]
+        return self.simulator.simulate( # type: ignore [union-attr]
+            target, self.current_function, init_states # type: ignore [arg-type]
+        )
 
     def add_constraint(self, constraint: Expression[AngrBool]) -> None:
         """
@@ -136,6 +149,10 @@ class DangrAnalysis: # pylint: disable=too-many-instance-attributes
         """
         self._jasm_match_set()
         self.simulator.add_constraints([constraint]) # type: ignore [union-attr]
+
+    def remove_constraints(self) -> None:
+        self._jasm_match_set()
+        self.simulator.remove_constraints() # type: ignore [union-attr]
 
     def satisfiable(self, states: list[angr.SimState]) -> bool:
         """

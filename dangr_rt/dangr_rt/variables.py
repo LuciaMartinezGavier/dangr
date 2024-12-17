@@ -17,7 +17,7 @@ import angr
 import claripy
 import archinfo
 
-from dangr_rt.dangr_types import Address, AngrExpr, BYTE_SIZE
+from dangr_rt.dangr_types import Address, BYTE_SIZE
 
 
 class Variable(ABC):
@@ -28,35 +28,22 @@ class Variable(ABC):
     that can participate in symbolic execution.
     """
 
-    def _check_ref_state_is_set(self) -> None:
-        """
-        Checks that `self.reference_states` is not None, if it is, raises a `ValueError`
-        """
-        if self.reference_states is None:
-            raise ValueError(f"reference_states is None in {self!r}")
-
     def __init__(self, project: angr.Project, ref_addr: Address) -> None:
         self.project: Final = project
         self.ref_addr: Final = ref_addr
-        self.reference_states: set[angr.SimState] | None = None
+        self.ref_state: angr.SimState | None = None
 
     @abstractmethod
-    def set_ref_states(self, states: list[angr.SimState]) -> None:
+    def set_ref_state(self, state: angr.SimState) -> None:
         """
-        Set the states asociated to the variable
+        Set the state asociated to the variable
         """
 
     @abstractmethod
-    def angr_repr(self) -> dict[angr.SimState, claripy.ast.bv.BV]:
+    def get_expr(self) -> claripy.ast.bv.BV:
         """
-        Returns an angr compatible representation given a state
+        Returns an angr compatible representation of the variable
         """
-
-    def get_expr(self) -> list[AngrExpr]:
-        """
-        TODO
-        """
-        return list(self.angr_repr().values())
 
     @abstractmethod
     def set_value(self, value: int) -> None:
@@ -68,57 +55,31 @@ class Variable(ABC):
             value (int): The value to set.
         """
 
-    def dependencies(
-        self,
-        variable_factory: 'VariableFactory' # type: ignore [name-defined]
-    ) -> list['Variable']:
+    def evaluate(self) -> int:
         """
-        Calculates the dependencies of this variable across multiple symbolic states.
-
-        Returns:
-            list[Variable]: A list of variables that this variable depends on.
-        """
-        self._check_ref_state_is_set()
-        deps: set[Variable] = set()
-
-        for ref_state in self.reference_states: # type: ignore[union-attr]
-            state_variables: set[str] = getattr(self.angr_repr()[ref_state], 'variables', set())
-
-            deps.update({
-                variable_factory.create_from_angr_name(var_name, self.ref_addr)
-                for var_name in state_variables
-            })
-
-        return list(deps)
-
-    def evaluate(self) -> dict[angr.SimState, int]:
-        """
-        Evaluates the current variable in the symbolic states where it is referenced.
+        Evaluates the current variable in the symbolic state where it is referenced.
 
         Returns:
             int: The concrete value of the variable.
         """
-        self._check_ref_state_is_set()
-        return {
-            state: state.solver.eval(self.angr_repr()[state], cast_to=int)
-            for state in self.reference_states # type: ignore[union-attr]
-        }
+        if self.ref_state is None:
+            raise ValueError(f"Can't evaluate {self!r} if ref_state is None")
+
+        var_value: int = self.ref_state.solver.eval(self.get_expr(), cast_to=int)
+        return var_value
 
     def is_concrete(self) -> bool:
         """
-        Checks if the variable has a concrete value in the given symbolic state.
-
-        Arguments:
-            state (angr.SimState): The symbolic state of the program.
+        Checks if the variable has a concrete value in the symbolic state
+        where it is referenced
 
         Returns:
-           list[bool]: True if the variable is concrete for each state.
+           bool: True if the variable is concrete.
         """
-        self._check_ref_state_is_set()
-        return all(
-            self.angr_repr()[state].concrete
-            for state in self.reference_states # type: ignore[union-attr]
-        )
+        if self.ref_state is None:
+            raise ValueError(f"Can't check if {self!r} is concrete if ref_state is None")
+
+        return self.get_expr().concrete
 
     @abstractmethod
     def size(self) -> int:
@@ -137,25 +98,25 @@ class Register(Variable):
     """
     def __init__(self, project: angr.Project, reg_name: str, ref_addr: Address) -> None:
         super().__init__(project, ref_addr)
-        self.name: Final = reg_name
+        self.name: Final[str] = reg_name
 
     @override
-    def set_ref_states(self, states: list[angr.SimState]) -> None:
-        self.reference_states = set(states)
+    def set_ref_state(self, state: angr.SimState) -> None:
+        self.ref_state = state
 
     @override
-    def angr_repr(self) -> dict[angr.SimState, claripy.ast.bv.BV]:
-        self._check_ref_state_is_set()
-        return {
-            state: getattr(state.regs, self.name)
-            for state in self.reference_states # type: ignore[union-attr]
-        }
+    def get_expr(self) -> claripy.ast.bv.BV:
+        if self.ref_state is None:
+            raise ValueError(f"Can't get expression of {self!r} if ref_state is None")
+
+        return getattr(self.ref_state.regs, self.name) # type: ignore[no-any-return]
 
     @override
     def set_value(self, value: int) -> None:
-        self._check_ref_state_is_set()
-        for state in self.reference_states: # type: ignore[union-attr]
-            setattr(state.regs, self.name, value)
+        if self.ref_state is None:
+            raise ValueError(f"Can't set value of {self!r} if ref_state is None")
+
+        setattr(self.ref_state.regs, self.name, value)
 
     @override
     def size(self) -> int:
@@ -177,15 +138,8 @@ class Register(Variable):
     def __hash__(self) -> int:
         return hash((self.project, self.name, self.ref_addr))
 
-    def normalized_name(self) -> str:
-        """
-        Normalize the x86-64 register name to its 64-bit equivalent.
-        """
-        reg = self.project.arch.get_register_by_name(self.name) # type: ignore [no-untyped-call]
-        return str(reg.name)
-
     def __repr__(self) -> str:
-        return ('<(x) ' if self.reference_states else '<') +\
+        return ('<(x) ' if self.ref_state else '<') +\
                 f'Register {self.name} in {hex(self.ref_addr)}>'
 
 
@@ -203,40 +157,36 @@ class Memory(Variable):
     ) -> None:
 
         super().__init__(project, ref_addr)
-        self._size: Final = size
-        self.addr: Final = addr
+        self._size: Final[int] = size
+        self.addr: Final[Address] = addr
         self.reverse = reverse if reverse is not None else self._default_reverse()
 
     def _default_reverse(self) -> bool:
         return self.project.arch.memory_endness == archinfo.Endness.LE
 
     @override
-    def angr_repr(self) -> dict[angr.SimState, claripy.ast.bv.BV]:
-        self._check_ref_state_is_set()
-        angr_repr = {}
-        for state in self.reference_states: # type: ignore[union-attr]
+    def get_expr(self) -> claripy.ast.bv.BV:
+        if self.ref_state is None:
+            raise ValueError(f"Can't get expression of {self!r} if ref_state is None")
 
-            memory = state.memory.load(self.addr, self.size())
-            if self.reverse:
-                memory = memory.reversed
-
-            angr_repr[state] = memory
-
-        return angr_repr
+        memory = self.ref_state.memory.load(self.addr, self.size())
+        return memory.reversed if self.reverse else memory
 
     @override
-    def set_ref_states(self, states: list[angr.SimState]) -> None:
-        self.reference_states = set(states)
+    def set_ref_state(self, state: angr.SimState) -> None:
+        self.ref_state = state
 
     @override
     def set_value(self, value: int) -> None:
-        self._check_ref_state_is_set()
+        if self.ref_state is None:
+            raise ValueError(f"Can't set value of {self!r} if ref_state is None")
+
         bvv_value = claripy.BVV(value, self.size()*BYTE_SIZE)
+
         if self.reverse:
             bvv_value = bvv_value.reversed
 
-        for state in self.reference_states: # type: ignore[union-attr]
-            state.memory.store(self.addr, bvv_value, self.size())
+        self.ref_state.memory.store(self.addr, bvv_value, self.size())
 
     @override
     def size(self) -> int:
@@ -252,9 +202,8 @@ class Memory(Variable):
     def __hash__(self) -> int:
         return hash((self.project, self.addr, self.size, self.ref_addr))
 
-
     def __repr__(self) -> str:
-        return ('<(x) ' if self.reference_states else '<') +\
+        return ('<(x) ' if self.ref_state else '<') +\
                f'Memory ({hex(self.addr)}, {self.size()}) reference in {hex(self.ref_addr)}>'
 
 
@@ -270,18 +219,15 @@ class Literal(Variable):
         ref_addr: int,
         ) -> None:
         super().__init__(project, ref_addr)
-        self.value: Final = value
+        self.value: Final[int] = value
 
     @override
-    def angr_repr(self) -> dict[angr.SimState, claripy.ast.bv.BV]:
-        return {
-            state: claripy.BVV(self.value, self.size()*BYTE_SIZE)
-            for state in self.reference_states # type: ignore[union-attr]
-        }
+    def get_expr(self) -> claripy.ast.bv.BV:
+        return claripy.BVV(self.value, self.size()*BYTE_SIZE)
 
     @override
-    def set_ref_states(self, states: list[angr.SimState]) -> None:
-        self.reference_states = set(states)
+    def set_ref_state(self, state: angr.SimState) -> None:
+        pass
 
     @override
     def set_value(self, value: int) -> None:
@@ -323,61 +269,40 @@ class Deref(Variable):
     ) -> None:
 
         super().__init__(base.project, base.ref_addr)
-        self.base: Final = base
-        self.idx: Final = idx
+        self.base: Final[Register] = base
+        self.idx: Final[int] = idx
         self.reverse: Final[bool] = reverse if reverse is not None else self._default_reverse()
 
     def _default_reverse(self) -> bool:
         return self.project.arch.memory_endness == archinfo.Endness.LE
 
-    def _load_mem(self, state: angr.SimState) -> claripy.ast.bv.BV:
-        mem = state.memory.load(self.base.angr_repr()[state], int(self.size()))
-        if self.reverse:
-            return mem.reversed
-        return mem
+    @override
+    def get_expr(self) -> claripy.ast.bv.BV:
+        if self.ref_state is None:
+            raise ValueError(f"Can't get expression of {self!r} if ref_state is None")
+
+        mem = self.ref_state.memory.load(
+            self.base.get_expr(),
+            int(self.size())
+        )
+
+        return mem.reversed if self.reverse else mem
 
     @override
-    def angr_repr(self) -> dict[angr.SimState, claripy.ast.bv.BV]:
-        self._check_ref_state_is_set()
-        return {
-            state: self._load_mem(state)
-            for state in self.reference_states # type: ignore[union-attr]
-        }
-
-    @override
-    def set_ref_states(self, states: list[angr.SimState]) -> None:
-        self.reference_states = set(states)
-        self.base.reference_states = set(states)
+    def set_ref_state(self, state: angr.SimState) -> None:
+        self.ref_state = state
+        self.base.ref_state = state
 
     @override
     def set_value(self, value: int) -> None:
-        self._check_ref_state_is_set()
+        if self.ref_state is None:
+            raise ValueError(f"Can't set value of {self!r} if ref_state is None")
+
         bvv_value = claripy.BVV(value, self.size()*BYTE_SIZE)
         if self.reverse:
             bvv_value = bvv_value.reversed
 
-        for state in self.reference_states: # type: ignore[union-attr]
-            state.memory.store(
-                self.base.angr_repr()[state],
-                bvv_value, int(self.size()),
-            )
-
-    def memory_contents(self, state: angr.SimState) -> list[AngrExpr]:
-        """
-        Evaluates the memory referenced by the `self.base` register
-        in the given `state` 
-
-        Returns:
-            int: The concrete values of the variable.
-        """
-        self._check_ref_state_is_set()
-        memory_contents: list[AngrExpr] = []
-        for der_state in self.reference_states: # type: ignore[union-attr]
-            memory = state.memory.load(self.base.angr_repr()[der_state], self.size())
-            if self.reverse:
-                memory = memory.reversed
-            memory_contents.append(memory)
-        return memory_contents
+        self.ref_state.memory.store(self.base.get_expr(), bvv_value, self.size())
 
     @override
     def size(self) -> int:

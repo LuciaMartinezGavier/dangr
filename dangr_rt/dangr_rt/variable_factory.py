@@ -1,9 +1,8 @@
 from typing import Final
 import angr
 from dangr_rt.jasm_findings import VariableMatch
-from dangr_rt.dangr_types import Argument, Address, BYTE_SIZE
-from dangr_rt.variables import Variable, Register, Memory, Literal
-
+from dangr_rt.dangr_types import Argument
+from dangr_rt.variables import Variable, Register, Literal, Deref
 
 class VariableFactory:
     """
@@ -55,25 +54,16 @@ class VariableFactory:
 
         return Register(self.project, reg_name, argument.call_address)
 
-    def create_from_angr_name(self, angr_name: str, ref_addr: Address) -> Variable:
+    def create_deref(
+        self,
+        base: Variable,
+        idx: int = 0,
+        reverse: bool | None = None
+    ) -> Deref:
         """
-        Create the Register or Memory object by parsing the name that angr provides
-        when obtaining the variables of the symbolic formula.
-
-        Examples:
-        >>> Register.angr_name_to_register('reg_rdx_507_64', 0x401111)
-        Register(name='rdx', 0x401111)
-
-        >>> Memory.angr_name_to_register('mem_ffffe00000000000_17_32', 0x401111)
-        Memory(addr=0xffffe00000000000, size=4, 0x401111)
+        Creates a Deref from another register 
         """
+        if not isinstance(base, Register):
+            raise ValueError("It's only possible to dereference registers")
 
-        if angr_name.startswith("reg"):
-            name = angr_name.split("_")[1]
-            return Register(self.project, name, ref_addr)
-
-        if angr_name.startswith("mem"):
-            _, addr_str, _, size = angr_name.split("_")
-            return Memory(self.project, int(addr_str, 16), int(int(size)/BYTE_SIZE), ref_addr)
-
-        raise ValueError("Unknown variable name")
+        return Deref(base, idx=idx, reverse=reverse)

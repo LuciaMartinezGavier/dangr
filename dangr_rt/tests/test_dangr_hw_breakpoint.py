@@ -53,17 +53,16 @@ def test_software_breakpoint_detection(test_case):
     which is detemined if when the debug registers are being read through the syscall ptrace
     """
     dangr = DangrAnalysis(test_case.binary, {'max_depth': test_case.max_depth})
-    vf = dangr.get_variable_factory()
 
     for struc_find in test_case.jasm_matches:
         dangr.set_finding(struc_find)
         ptrace_call = struc_find.addrmatch_from_name("ptrace_call").value
 
-        a1 = vf.create_from_argument(Argument(1, ptrace_call, 4))
+        a1 = dangr.create_var_from_argument(Argument(1, ptrace_call, 4))
 
         assert a1 == test_case.expected_a1(dangr.project)
 
-        a3 = vf.create_from_argument(Argument(3, ptrace_call, 4))
+        a3 = dangr.create_var_from_argument(Argument(3, ptrace_call, 4))
         assert a3 == test_case.expected_a3(dangr.project)
 
         dangr.add_variables([a1, a3])

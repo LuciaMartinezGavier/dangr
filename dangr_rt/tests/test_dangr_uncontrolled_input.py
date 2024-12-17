@@ -72,14 +72,12 @@ def test_software_breakpoint_detection(test_case):
     """
 
     dangr = DangrAnalysis(test_case.binary, {'max_depth': test_case.max_depth})
-    vf = dangr.get_variable_factory()
 
     for struc_find in test_case.jasm_matches:
         dangr.set_finding(struc_find)
-        vf = dangr.get_variable_factory()
         deref_address = struc_find.addrmatch_from_name("deref-address").value
 
-        ptr = vf.create_from_capture(struc_find.varmatch_from_name('ptr'))
+        ptr = dangr.create_var_from_capture(struc_find.varmatch_from_name('ptr'))
         assert ptr == test_case.expected_ptr(dangr.project)
 
         # idx = vf.create_from_capture(struc_find.captured_regs['idx'])

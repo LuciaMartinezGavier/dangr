@@ -8,7 +8,6 @@ import angr
 
 from dangr_rt.dangr_types import Address
 from dangr_rt.variables import Variable
-from dangr_rt.variable_factory import VariableFactory
 
 class DependencyAnalyzer:
     """
@@ -19,14 +18,12 @@ class DependencyAnalyzer:
 
     def __init__(
         self, project: angr.Project,
-        variable_factory: VariableFactory,
         call_depth: int | None = None,
         max_steps: int | None = None,
         resolve_indirect_jumps: bool | None = None
     ):
         self.project = project
         self.ddg: DiGraph | None = None
-        self.variable_factory = variable_factory
 
         self.call_depth = call_depth or self.CALL_DEPTH_DEFAULT
         self.max_steps = max_steps
