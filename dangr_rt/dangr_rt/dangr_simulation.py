@@ -71,7 +71,7 @@ class DangrSimulation:
         """
         Symbolic execute adding the constraints until reaching que target
         """
-        checkpoints = self._create_checkpoints(target)
+        checkpoints = self._create_checkpoints(init_addr, target)
 
         if not initial_values_list:
             blank_state = initialize_state(self.project, init_addr)
@@ -120,10 +120,10 @@ class DangrSimulation:
         for constraint in constraints:
             state.solver.add(constraint.get_expr())
 
-    def _create_checkpoints(self, target: Address) -> Checkpoints:
+    def _create_checkpoints(self, init_addr: Address, target: Address) -> Checkpoints:
         checkpoints = Checkpoints()
         self._create_var_checkpoints(checkpoints)
-        self._create_constr_checkpoints(checkpoints, target)
+        self._create_constr_checkpoints(checkpoints, init_addr)
         self._add_target_checkpoint(checkpoints, target)
         return checkpoints.sorted()
 
