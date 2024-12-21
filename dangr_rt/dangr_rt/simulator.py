@@ -29,6 +29,7 @@ def initialize_state(
 
     return state
 
+
 class ForwardSimulation:
     """
     Simulate until reaching a target
@@ -58,6 +59,36 @@ class ForwardSimulation:
         simulation.explore(find=target, num_find=self.num_finds) # type: ignore [no-untyped-call]
 
         return simulation.found
+
+
+class HookSimulation:
+    """
+    Simulate until reaching a target
+    """
+    def __init__(
+        self,
+        project: angr.Project,
+        init_addr: Address,
+        stop: Callable[[list[angr.SimState]], bool],
+        initial_values: None | ConcreteState = None,
+        **inspect_kwargs: Any
+    ) -> None:
+
+        self.project = project
+        self.init_addr = init_addr
+        self.stop = stop
+        self.initial_values = initial_values
+        self.inspect_kwargs = inspect_kwargs
+
+    def simulate(self) -> list[angr.SimState]:
+        initial = initialize_state(self.project, self.init_addr, self.initial_values)
+        simulation = self.project.factory.simulation_manager(initial)
+        initial.inspect.b(**self.inspect_kwargs) # type: ignore [no-untyped-call]
+
+        while simulation.active and not self.stop(simulation.active):
+            simulation.step() # type: ignore [no-untyped-call]
+
+        return simulation.active
 
 
 @dataclass
@@ -175,32 +206,3 @@ class BackwardSimulation:
         is_external_block =  state.addr >= self._EXTERNAL_ADDR_SPACE_BASE
         is_in_slice = state.addr in [p.addr for p in pred]
         return not is_in_slice or is_external_block or already_visited
-
-class HookSimulation:
-    """
-    Simulate until reaching a target
-    """
-    def __init__(
-        self,
-        project: angr.Project,
-        init_addr: Address,
-        stop: Callable[[list[angr.SimState]], bool],
-        initial_values: None | ConcreteState = None,
-        **inspect_kwargs: Any
-    ) -> None:
-
-        self.project = project
-        self.init_addr = init_addr
-        self.stop = stop
-        self.initial_values = initial_values
-        self.inspect_kwargs = inspect_kwargs
-
-    def simulate(self) -> list[angr.SimState]:
-        initial = initialize_state(self.project, self.init_addr, self.initial_values)
-        simulation = self.project.factory.simulation_manager(initial)
-        initial.inspect.b(**self.inspect_kwargs) # type: ignore [no-untyped-call]
-
-        while simulation.active and not self.stop(simulation.active):
-            simulation.step() # type: ignore [no-untyped-call]
-
-        return simulation.active
