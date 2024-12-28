@@ -10,7 +10,7 @@ class DangrArgparse(argparse.ArgumentParser):
     allows the user to add other arguments if needed.
 
     In the resulting parserd arguments a `config` dictionary is
-    accesible. That same dict can be recieved by the DangrAnalysis.
+    accesible. That same dict can be recieved by any DangrAnalysis.
     """
     def __init__(self, description: str) -> None:
         super().__init__(description=description)

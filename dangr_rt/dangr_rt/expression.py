@@ -110,7 +110,7 @@ class Not(Expression[AngrBool]):
 
     @override
     def get_expr(self) -> AngrBool:
-        return claripy.Not(claripy.BoolV(self._operand_expr(self.operand)))
+        return claripy.Not(self._operand_expr(self.operand))
 
     @override
     @property
@@ -194,14 +194,10 @@ class IsMax(Expression[AngrBool]):
 
         return angr_exp.size()
 
-    def _max_value(self, angr_exp: AngrArith) -> int:
-        max_value: int = 2**self._size(angr_exp)*BYTE_SIZE
-        return max_value
-
     @override
     def get_expr(self) -> AngrBool:
         exp = self.operand.get_expr()
-        return exp == self._max_value(exp)
+        return exp == 2**(self._size(exp)*BYTE_SIZE) - 1
 
     @override
     @property

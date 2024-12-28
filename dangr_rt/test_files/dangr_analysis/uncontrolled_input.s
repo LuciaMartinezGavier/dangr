@@ -58,18 +58,15 @@ vulnerable_function1:
 	.cfi_offset 6, -16
 	movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
-	subq	$32, %rsp
-	movq	%rdi, -24(%rbp)
-	movl	$32, %edi
-	call	malloc@PLT
-	movq	%rax, -8(%rbp)
-	movq	-24(%rbp), %rax
+	movq	%rdi, -8(%rbp)
+	movq	%rsi, -16(%rbp)
+	movq	-16(%rbp), %rax
 	leaq	0(,%rax,4), %rdx
 	movq	-8(%rbp), %rax
 	addq	%rdx, %rax
 	movl	$0, (%rax)
 	nop
-	leave
+	popq	%rbp
 	.cfi_def_cfa 7, 8
 	ret
 	.cfi_endproc
@@ -190,8 +187,6 @@ main:
 	.cfi_offset 6, -16
 	movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
-	movl	$45, %edi
-	call	vulnerable_function1
 	movl	$0, %eax
 	popq	%rbp
 	.cfi_def_cfa 7, 8
