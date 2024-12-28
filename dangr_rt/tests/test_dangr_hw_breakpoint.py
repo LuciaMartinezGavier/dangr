@@ -26,10 +26,15 @@ class HardwareBreakpoint(DangrAnalysis):
         a3 = self._create_var_from_argument(Argument(3, ptrace_call, 4))
         self._add_variables([a1, a3])
 
-        list_concrete_values = self._concretize_fn_args()
         self._add_constraint(And(Eq(a1, 3), Eq(a3, 848)))
-        sim_results = self._simulate(ptrace_call, list_concrete_values)
-        return any(self._satisfiable(sts) for sts in sim_results)
+        list_concrete_values = self._concretize_fn_args()
+
+        for concrete_values in list_concrete_values:
+            found_states = self._simulate(ptrace_call, concrete_values)
+            if self._satisfiable(found_states):
+                return True
+
+        return False
 
 
 HW_BRKP_TESTS = [

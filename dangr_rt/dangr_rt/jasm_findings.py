@@ -138,18 +138,27 @@ constraint_bug_matches = [JasmMatch( {0x40_1144: "", 0x401147: "", 0x40_114a: ""
 mock_small_bmp_support_lib = {
     '1339': [ JasmMatch(
         match={0x40_1339:''},
-        address_captures=[AddressMatch(name="alloc_call", value=0x40_1339)],
+        address_captures=[
+            AddressMatch(name="alloc_call", value=0x40_1339),
+            AddressMatch(name="_target", value=0x40_1339)
+        ],
         variables=[])],
     '12c5': [ JasmMatch(
         match={0x40_12c5:''},
-        address_captures=[AddressMatch(name="alloc_call", value=0x40_12c5)],
+        address_captures=[
+            AddressMatch(name="alloc_call", value=0x40_12c5),
+            AddressMatch(name="_target", value=0x40_12c5)
+        ],
         variables=[])]
 }
 
 mock_hardware_breakpoint = {
     '11f3': [ JasmMatch(
         match={0x40_11f3:''},
-        address_captures=[AddressMatch(name="ptrace_call", value=0x40_11f3)],
+        address_captures=[
+            AddressMatch(name="ptrace_call", value=0x40_11f3),
+            AddressMatch(name="_target", value=0x40_11f3),
+        ],
         variables=[]
     )]
 }
@@ -204,7 +213,10 @@ mock_software_breakpoint = {
 mock_uncontrolled_input = {
     '0078' : [JasmMatch(
             match={0x40_0059:'', 0x40_0078: ''},
-            address_captures=[AddressMatch(name='deref-address', value=0x40_0078)],
+            address_captures=[
+                AddressMatch(name='deref-address', value=0x40_0078),
+                AddressMatch(name='_target', value=0x40_0078),
+            ],
             variables=[VariableMatch(name='ptr', value='rax', addr=0x40_0078)]
         )],
     '00ce': [JasmMatch(

@@ -66,25 +66,14 @@ class DangrSimulation:
         self,
         target: Address,
         init_addr: Address,
-        initial_values_list: list[ConcreteState] | None = None
-    ) -> list[list[angr.SimState]]:
+        initial_values: ConcreteState | None = None
+    ) -> list[angr.SimState]:
         """
         Symbolic execute adding the constraints until reaching que target
-
-        TODO: explain what does list[list[angr.SimState]] mean
         """
         checkpoints = self._create_checkpoints(init_addr, target)
-        found_states = []
-
-        if not initial_values_list:
-            blank_state = initialize_state(self.project, init_addr)
-            found_states.append(self._rec_simulate(blank_state, 0, checkpoints))
-        else:
-            for initial_values in initial_values_list:
-                init_state = initialize_state(self.project, init_addr, initial_values)
-                found_states.append(self._rec_simulate(init_state, 0, checkpoints))
-
-        return found_states
+        init_state = initialize_state(self.project, init_addr, initial_values)
+        return self._rec_simulate(init_state, 0, checkpoints)
 
     def _rec_simulate(self, active_state, checkpoint_idx: int, checkpoints: Checkpoints):
 

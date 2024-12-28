@@ -3,7 +3,7 @@ from typing import override, Any
 import pytest
 from tests.conftest import BinaryBasedTestCase,fullpath
 from dangr_rt.dangr_analysis import DangrAnalysis
-from dangr_rt.jasm_findings import JasmMatch, VariableMatch, AddressMatch
+from dangr_rt.jasm_findings import JasmMatch
 from dangr_rt.expression import Eq, Not
 
 DANGR_DIR = 'dangr_analysis'
@@ -57,9 +57,13 @@ class SoftwareBreakpoint(DangrAnalysis):
         self._add_constraint(Not(Eq(dx, 0xfa1e0ff3)))
 
         list_concrete_values = self._concretize_fn_args()
-        sim_results = self._simulate(cmp_address, list_concrete_values)
-        return any(not self._satisfiable(sts) for sts in sim_results)
 
+        for concrete_values in list_concrete_values:
+            found_states = self._simulate(cmp_address, concrete_values)
+            if not self._satisfiable(found_states):
+                return True
+
+        return False
 
 @pytest.mark.parametrize("test_case", SW_BRKP_TESTS, indirect=True)
 def test_software_breakpoint_detection(test_case):

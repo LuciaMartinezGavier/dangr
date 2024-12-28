@@ -135,21 +135,26 @@ class DangrAnalysis(ABC): # pylint: disable=too-many-instance-attributes
         """
         self._jasm_match_set()
 
-        return self._arguments_analyzer.solve_arguments(
+        concrete_args = self._arguments_analyzer.solve_arguments(
             # already checked in _jasm_match_set() ↓
             self._current_function, # type: ignore [arg-type]
             self._get_fn_args()
         )
 
+        if not concrete_args:
+            concrete_args.append(ConcreteState())
+
+        return concrete_args
+
     def _simulate(
         self,
         target: Address,
-        init_states: list[ConcreteState] | None = None
-    ) -> list[list[angr.SimState]]:
+        init_state: ConcreteState | None = None
+    ) -> list[angr.SimState]:
 
         self._jasm_match_set()
         return self._simulator.simulate( # type: ignore [union-attr]
-            target, self._current_function, init_states # type: ignore [arg-type]
+            target, self._current_function, init_state # type: ignore [arg-type]
         )
 
     def _add_constraint(self, constraint: Expression[AngrBool]) -> None:
@@ -165,6 +170,17 @@ class DangrAnalysis(ABC): # pylint: disable=too-many-instance-attributes
         """
         self._jasm_match_set()
         self._simulator.remove_constraints() # type: ignore [union-attr]
+
+    def _unconstrained_sat(
+        self, target: Address,
+        concrete_args: ConcreteState | None = None
+    ) -> bool:
+        """
+        Re runs the simulation with no constraints, returns true if there
+        is some satisfiable state after the simulation
+        """
+        self._remove_constraints()
+        return self._satisfiable(self._simulate(target, concrete_args))
 
     def _satisfiable(self, states: list[angr.SimState]) -> bool:
         """

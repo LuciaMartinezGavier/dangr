@@ -38,7 +38,7 @@ class AllocZero(DangrAnalysis):
         self._add_variables([size])
         self._add_constraint(Eq(size, 0))
 
-        found_states = self._simulate(alloc_call)[0]
+        found_states = self._simulate(alloc_call)
         return self._satisfiable(found_states)
 
 @pytest.mark.parametrize("test_case", ALLOC_ZERO_TESTS, indirect=True)

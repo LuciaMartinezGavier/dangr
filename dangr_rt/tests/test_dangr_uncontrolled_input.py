@@ -55,9 +55,8 @@ class UncontrolledInput(DangrAnalysis):
 
         self._add_variables([ptr] + args)
         self._add_constraint(IsMax(ptr))
-        sim_result = self._simulate(deref_address)
-        return self._satisfiable(sim_result[0])
-
+        found_states = self._simulate(deref_address)
+        return self._satisfiable(found_states)
 
 @pytest.mark.parametrize("test_case", UNCNTRL_IN_TESTS, indirect=True)
 def test_uncontrolled_input(test_case):
