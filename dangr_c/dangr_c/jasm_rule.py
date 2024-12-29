@@ -33,41 +33,29 @@ class JasmRuleEditor:
         Returns a list with all the variable names in the pattern
         A variable captures a register or literal for example `$any-var`
         """
-        return []
+        # MOCKED
+        match self.rule['pattern']:
+            case 'mock hardware_breakpoint':
+                return []
+            case 'software_breakpoint_pattern':
+                return ['y', 'z', 'opcode_addr']
+            case 'mock small_bmp_support_lib_12c5':
+                return []
+            case 'mock uncontrolled_input_0078':
+                return ['ptr']
+
 
     def address_captures(self) -> list[str]:
         """
         Returns a list with all the address captures names in the pattern
         """
-        return ['ptrace_call', '_target']
-
-@dataclass
-class VariableMatch:
-    name: str
-    value: str
-    addr: int
-
-@dataclass
-class AddressMatch:
-    name: str
-    value: int
-
-# jasm returns a set of JasmMatch's
-class JasmMatch:
-
-    def variables(self) -> list[VariableMatch]:
-        """
-        Returns a dict with all the variables matched
-        Including
-        - The variable name
-        - The register/literal matched
-        - The address capture in the instruction if it exists
-        """
-        return []
-
-    def address_captures(self) -> list[AddressMatch]:
-        """
-        Returns a list with all the address captures.
-        The keys are the anchore's names and the value is the match
-        """
-        return []
+        # MOCKED
+        match self.rule['pattern']:
+            case 'mock hardware_breakpoint':
+                return ['ptrace_call', '_target']
+            case 'software_breakpoint_pattern':
+                return ['_target']
+            case 'mock small_bmp_support_lib_12c5':
+                return ['alloc_call', '_target']
+            case 'mock uncontrolled_input_0078':
+                return ['_target']

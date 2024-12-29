@@ -12,26 +12,33 @@ import sys
 from typing import Final, override
 from dangr_rt import *
 
-JASM_PATTERN: Final[dict] = {'pattern': 'mock hardware_breakpoint'}
-META: Final[dict] = {}
+JASM_PATTERN: Final[dict] = {'pattern': 'software_breakpoint_pattern'}
+META: Final[dict] = {'authors': ['Lucía Martinez Gavier']}
 
 
 class Rule(DangrAnalysis):
 
     @override
     def _analyze_asm_match(self, jasm_match: JasmMatch) -> str | None:
-        msg = "Debugging evasion through hardware breakpoint detection"
-        ptrace_call = jasm_match.addrmatch_from_name("ptrace_call").value
+        msg = "Debugging evasion through software breakpoint detection"
         _target = jasm_match.addrmatch_from_name("_target").value
-        a1 = self._create_var_from_argument(Argument(1, ptrace_call, 4))
-        a3 = self._create_var_from_argument(Argument(3, ptrace_call, 4))
-        self._add_constraint(Eq(a1, 3))
-        self._add_constraint(Eq(a3, 848))
+        y = self._create_var_from_capture(jasm_match.varmatch_from_name("y"))
+        z = self._create_var_from_capture(jasm_match.varmatch_from_name("z"))
+        opcode_addr = self._create_var_from_capture(
+            jasm_match.varmatch_from_name("opcode_addr"))
+        opcode = self._create_deref(opcode_addr)
+        if not (self._depends(opcode, y) or self._depends(opcode, z)):
+            return
+        self._add_constraint(Eq(y, z))
+        self._add_constraint(Not(Eq(opcode, 0xFA1E0FF3)))
         args_list = self._concretize_fn_args()
 
         for args in args_list:
             found_states = self._simulate(_target, args)
-            if self._satisfiable(found_states):
+            if not found_states:
+                return msg if self._unconstrained_sat(_target, args) else None
+
+            if not self._satisfiable(found_states):
                 return msg
 
 

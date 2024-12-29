@@ -44,7 +44,6 @@ class WhereExprVisitor(ASTVisitor):
         self.reverse = reverse
         self.formula: str = ''
         self.expr_type: ExprType | None = None
-        self.dst_variable: str | None = None
 
     def visit_atom(self, node: Atom) -> None:
         if node == '_anyarg':
@@ -59,12 +58,11 @@ class WhereExprVisitor(ASTVisitor):
     def visit_asgn(self, node: Parent) -> None:
         self.expr_type = ExprType.ASSIGN
         lv = self._build_subformula(node['lv'])
-        self.dst_variable = lv
         self.formula += f'{lv} = '
         self.visit(node['rv'])
 
     def visit_arg(self, node: Parent) -> None:
-        self.formula += 'vf.create_from_argument(Argument('
+        self.formula += 'self._create_var_from_argument(Argument('
         self.visit(node['idx'])
         self.formula += ', '
         self.visit(node['call'])
@@ -73,7 +71,7 @@ class WhereExprVisitor(ASTVisitor):
         self.formula += '))'
 
     def visit_deref(self, node: Parent) -> None:
-        self.formula += 'Deref('
+        self.formula += 'self._create_deref('
         self.visit(node['var'])
         if self.reverse:
             self.formula += ', reverse=True'
@@ -105,9 +103,9 @@ class WhereExprVisitor(ASTVisitor):
         trg = self._build_subformula(node['trg'])
         self._dep_check_if_valid(src, trg)
 
-        basic_dep = f'dangr.depends({src}, {trg})'
+        basic_dep = f'self._depends({src}, {trg})'
         if src == '_arg' or trg == '_arg':
-            self.formula += f'some({basic_dep} for _arg in dangr.get_fn_args())'
+            self.formula += f'any({basic_dep} for _arg in self._get_fn_args())'
             return
 
         self.formula += basic_dep
@@ -147,8 +145,8 @@ class SuchThatExprVisitor(ASTVisitor):
         self.formula = ''
         self.visit(node)
 
-    def visit_upper_unbounded_ptr(self, node: Parent) -> None:
-        self.formula += 'IsMaxPtr('
+    def visit_upper_unbounded(self, node: Parent) -> None:
+        self.formula += 'IsMax('
         self.visit(node['bounded_exp'])
         self.formula += ')'
 

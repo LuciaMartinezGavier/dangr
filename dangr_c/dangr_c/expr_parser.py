@@ -23,7 +23,6 @@ class ExprParser:
     LBRACKET = Suppress(Literal('('))
     RBRACKET = Suppress(Literal(')'))
     COMMA = Suppress(Literal(','))
-    DEREF = Suppress('*')
 
     AND = Keyword('and')
     OR = Keyword('or')
@@ -98,9 +97,13 @@ class WhereExprParser(ExprParser):
     ARROW = Suppress('->')
     ASSIGN_EQ = Suppress('=')
     ANYARG = Keyword('_anyarg')
+    DEREF = Suppress('*')
 
     @property
     def deref(self) -> ParserElement:
+        """
+        <deref>: *<identifier>
+        """
         return Group(
             self.DEREF
             + self.identifier('var')
@@ -108,6 +111,9 @@ class WhereExprParser(ExprParser):
 
     @property
     def arg(self) -> ParserElement:
+        """
+        arg(<idx>, <identifier>, <size>)
+        """
         return Group(
             self.ARG
             + self.LBRACKET
@@ -180,7 +186,7 @@ class SuchThatExprParser(ExprParser):
     TRUE = Keyword('True')
     FALSE = Keyword('False')
 
-    UPPER_UNBOUNDED_PTR = Suppress('upper_unbounded_ptr')
+    UPPER_UNBOUNDED = Suppress('upper_unbounded')
     CONSTRAINT_EQ = Literal('=')
 
     @property
@@ -197,18 +203,16 @@ class SuchThatExprParser(ExprParser):
         return arith_expr
 
     @property
-    def upper_unbounded_ptr(self) -> ParserElement:
+    def upper_unbounded(self) -> ParserElement:
         """
-        <upper_unbounded_ptr>: upper_unbounded_ptr(<bounded_exp>, <is_ptr>)
-        <bounded_exp>: <arith>
-        <is_ptr>: True | False
+        <upper_unbounded>: upper_unbounded(<arith>)
         """
         return Group(
-            self.UPPER_UNBOUNDED_PTR
+            self.UPPER_UNBOUNDED
             + self.LBRACKET
             + self.arith('bounded_exp')
             + self.RBRACKET
-        )("upper_unbounded_ptr")
+        )("upper_unbounded")
 
     @property
     def constr_eq(self) -> ParserElement:
@@ -218,7 +222,17 @@ class SuchThatExprParser(ExprParser):
             + self.arith('rgt')
         )('eq')
 
+    @property
+    def logic_operand(self) -> ParserElement:
+        return self.constr_eq | self.upper_unbounded
+
     @override
     @property
     def expr(self) -> ParserElement:
-        return Group(self._logic(self.constr_eq) | self.upper_unbounded_ptr)("such_that")
+        """
+        <such-that>: <constr_eq> | <upper_unbounded>
+                   | <such-that> and <such-that>
+                   | <such-that> or <such-that>
+                   | not <such-that> 
+        """
+        return Group(self._logic(self.logic_operand))("such_that")

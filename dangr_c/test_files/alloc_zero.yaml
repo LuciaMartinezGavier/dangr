@@ -1,0 +1,14 @@
+---
+given:
+  pattern: 'mock small_bmp_support_lib_12c5'
+  # JASM PATTERN OF THE MOCKED ANSWER:
+  #   - call:
+  #     func-addr: "@any" # Opcional
+  #     func-name: "<AllocatePool>" # Opcional
+  #     address-capture: alloc_call
+where:
+  - size = arg(1, alloc_call, 4)
+such-that:
+  - size = 0
+report:
+  "Alloc can be called with 0 as argument"

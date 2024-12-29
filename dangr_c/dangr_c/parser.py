@@ -32,8 +32,7 @@ class DangrParser:
         self.rule_path = rule_path
         self.ast: dict[str, Any] = {}
 
-        self.assigns: list[str] = []
-        self.variables: list[str] = []
+        self.where_assigns: list[str] = []
         self.constraints: list[str] = []
         self.deps: list[str] = []
 
@@ -67,10 +66,7 @@ class DangrParser:
     def _store_expression(self, visitor: WhereExprVisitor | SuchThatExprVisitor) -> None:
         match visitor.expr_type:
             case ExprType.ASSIGN:
-                self.assigns.append(visitor.formula)
-
-                dst_variable = getattr(visitor, 'dst_variable')
-                self.variables.append(dst_variable)
+                self.where_assigns.append(visitor.formula)
 
             case ExprType.DEP_EXPR:
                 self.deps.append(visitor.formula)
@@ -103,8 +99,7 @@ class DangrParser:
             'meta': self.ast['meta'],
             'config': self.ast['config'],
             'jasm_rule': self.ast['given'],
-            'assigns': self.assigns,
-            'variables': self.variables,
+            'where_assigns': self.where_assigns,
             'deps': self.deps,
             'constraints': self.constraints,
             'satisfiable': self.ast['then'],

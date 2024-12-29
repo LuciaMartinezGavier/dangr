@@ -13,7 +13,7 @@ WHERE_EXPR = [
                 'size': '1',
             }}
         }}},
-        'a1 = vf.create_from_argument(Argument(1, ptrace_call, 1))',
+        'a1 = self._create_var_from_argument(Argument(1, ptrace_call, 1))',
         ExprType.ASSIGN
     ),
     (
@@ -26,7 +26,7 @@ WHERE_EXPR = [
                 'size': '4'
             }}
         }}},
-        'a3 = vf.create_from_argument(Argument(3, ptrace_call, 4))',
+        'a3 = self._create_var_from_argument(Argument(3, ptrace_call, 4))',
         ExprType.ASSIGN
     ),
     (
@@ -39,7 +39,7 @@ WHERE_EXPR = [
                 'size': '1'
             }}
         }}},
-        'size = vf.create_from_argument(Argument(4, alloc_call, 1))',
+        'size = self._create_var_from_argument(Argument(4, alloc_call, 1))',
         ExprType.ASSIGN
     ),
     (
@@ -48,7 +48,7 @@ WHERE_EXPR = [
             'lv': 'dx',
             'rv': { 'deref': { 'var': 'ptr'}}
         }}},
-        'dx = Deref(ptr)',
+        'dx = self._create_deref(ptr)',
         ExprType.ASSIGN
     ),
     (
@@ -57,13 +57,13 @@ WHERE_EXPR = [
             'lft': {'dep': {'src': 'dx', 'trg': 'y'}},
             'rgt': {'dep': {'src': 'dx', 'trg': 'z'}}
         }}},
-        '(dangr.depends(dx, y) or dangr.depends(dx, z))',
+        '(self._depends(dx, y) or self._depends(dx, z))',
         ExprType.DEP_EXPR
     ),
     (
         '(dx -> t)',
         {'where': {'dep': {'src': 'dx', 'trg': 't'}}},
-        'dangr.depends(dx, t)',
+        'self._depends(dx, t)',
         ExprType.DEP_EXPR
     ),
     (
@@ -72,13 +72,13 @@ WHERE_EXPR = [
             'lft': {'dep': {'src': 'a', 'trg': 'b'}},
             'rgt': {'dep': {'src': 'b', 'trg': 'c'}}
         }}}}},
-        '(not (dangr.depends(a, b) and dangr.depends(b, c)))',
+        '(not (self._depends(a, b) and self._depends(b, c)))',
         ExprType.DEP_EXPR
     ),
     (
         '(_anyarg -> foo)',
         { 'where': { 'dep': {'src': '_anyarg', 'trg': 'foo'}}},
-        'some(dangr.depends(_arg, foo) for _arg in dangr.get_fn_args())',
+        'any(self._depends(_arg, foo) for _arg in self._get_fn_args())',
         ExprType.DEP_EXPR
     ),
     (
@@ -87,7 +87,7 @@ WHERE_EXPR = [
             'lft': {'dep': {'src': 'foo', 'trg': '_anyarg'}},
             'rgt': {'dep': {'src': 'a', 'trg': 'b'}}
         }}},
-        '(some(dangr.depends(foo, _arg) for _arg in dangr.get_fn_args()) and dangr.depends(a, b))',
+        '(any(self._depends(foo, _arg) for _arg in self._get_fn_args()) and self._depends(a, b))',
         ExprType.DEP_EXPR
     ),
 ]
@@ -143,21 +143,24 @@ such_that = [
         'Not(Or(Eq(a1, a2), Eq(a3, 534)))'
     ),
     (
-        'upper_unbounded_ptr(ptr + idx*size)',
-        { 'such_that': { 'upper_unbounded_ptr': { 'bounded_exp': { 'add': {
+        'upper_unbounded(ptr + idx*size)',
+        { 'such_that': { 'upper_unbounded': { 'bounded_exp': { 'add': {
             'lft': 'ptr',
             'rgt': {'mul': {
                 'lft': 'idx',
                 'rgt': 'size'
             }}
         }}}}},
-        'IsMaxPtr(Add(ptr, Mul(idx, size)))'
+        'IsMax(Add(ptr, Mul(idx, size)))'
 
     ),
     (
-        'upper_unbounded_ptr(ptr)',
-        {'such_that': {'upper_unbounded_ptr': {'bounded_exp': 'ptr'}}},
-        'IsMaxPtr(ptr)'
+        'upper_unbounded(ptr) and (a = b)',
+        {'such_that': {'and': {
+            'lft': {'upper_unbounded': {'bounded_exp': 'ptr'}},
+            'rgt': {'eq': {'lft': 'a', 'rgt': 'b'}}
+        }}},
+        'And(IsMax(ptr), Eq(a, b))'
     ),
 
 ]

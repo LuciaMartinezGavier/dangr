@@ -1,0 +1,31 @@
+---
+meta:
+  authors:
+    - Lucía Martinez Gavier
+config:
+  solve_arguments: true
+given:
+  pattern: 'software_breakpoint_pattern'
+  # pattern:
+  # - $or:
+  #   - mov:
+  #     - $deref:
+  #       main_reg: "@any-opcode_addr"
+  #     - "@any"
+  #   - add:
+  #     - $deref:
+  #       main_reg: "@any-opcode_addr"
+  #     - "@any"
+  # - "@any":
+  #   times: 2
+  # - cmp:
+  #   - "@any-y"
+  #   - "@any-z"
+where:
+  - opcode = *opcode_addr
+  - (opcode -> y) or (opcode -> z)
+such-that:
+  - y = z
+  - not (opcode = 0xFA1E0FF3)
+then: false
+report: "Debugging evasion through software breakpoint detection"

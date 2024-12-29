@@ -1,80 +1,92 @@
 """
-# Automatically generated code for binary analysis using 'dangr'.
+# Automatically generated code for binary analysis using 'dangr_c'.
 #
-# This script defines a function, `detect`
-# The function uses pattern-matching rules (JASM)
-# to detect specific structural findings in the binary, which are then analyzed
-# through symbolic execution and constraint solving.
+# the Rule class extends the DangrAnalysis, which defines a method
+# analize(jasm_pattern) which uses asm pattern-matching
+# to detect specific structural findings in the binary,
+# and then they are analyzed through symbolic execution and 
+# constraint solving.
 """
 
-from typing import Final
-from collections import namedtuple
 import sys
-import argparse
-from dangr_rt.dangr_analysis import DangrAnalysis
-from dangr_rt.jasm_findings import structural_filter
-from dangr_rt.expression import *
-from dangr_rt.dangr_types import Argument
-from dangr_rt.dangr_argparse import DangrArgparse
+from typing import Final, override
+from dangr_rt import *
 
 JASM_PATTERN: Final[dict] = {{ jasm_rule | safe }}
 META: Final[dict] = {{ meta | safe }}
 
-DetectionResult = namedtuple("DetectionResult", ["detected", "message"])
 
-def detect(binary_path: str, config: dict) -> bool:
-    s_findings = structural_filter(binary_path, JASM_PATTERN)
-    dangr = DangrAnalysis(binary_path, config)
-    vf = dangr.get_variable_factory()
-
-    for s_finding in s_findings:
-        dangr.set_finding(s_finding)
+class Rule(DangrAnalysis):
+    @override
+    def _analyze_asm_match(self, jasm_match: JasmMatch) -> str | None:
+        msg = "{{ msg }}"
 
         {%- for addr_capture in address_captures %}
-        {{ addr_capture }} = s_finding.address_captures["{{ addr_capture }}"]
+        {{ addr_capture }} = jasm_match.addrmatch_from_name("{{ addr_capture }}").value
         {%- endfor %}
-        {%- for assign in assigns %}
+
+        {%- for var_capture in var_captures %}
+        {{ var_capture }} = self._create_var_from_capture(jasm_match.varmatch_from_name("{{ var_capture }}"))
+        {%- endfor %}
+
+        {%- for assign in where_assigns %}
         {{ assign }}
         {%- endfor %}
 
-        dangr.add_variables([{{ variables | join(', ') }}])
-
         {%- for dep in deps %}
         if not {{ dep }}:
-            break
+            return
         {%- endfor %}
 
         {%- for c in constraints %}
-        dangr.add_constraint({{ c }})
+        self._add_constraint({{ c }})
         {%- endfor %}
 
         {%- if config.solve_arguments %}
-        concrete_values = dangr.concretize_fn_args()
-        found_states = dangr.simulate({{ simulation_target }}, concrete_values)
+        args_list = self._concretize_fn_args()
+
+        for args in args_list:
+            found_states = self._simulate({{ _target }}, args)
+            {%- if satisfiable %}
+            if self._satisfiable(found_states):
+                return msg
+            {%- else %}
+            if not found_states:
+                return msg if self._unconstrained_sat({{ _target }}, args) else None
+
+            if not self._satisfiable(found_states):
+                return msg
+            {%- endif %}
         {%- else %}
-        found_states = dangr.simulate({{ simulation_target }})
-        {%- endif %}
+        found_states = self._simulate({{ _target }})
+
+        {%- if satisfiable %}
+        if self._satisfiable(found_states):
+            return msg
+        {%- else %}
         if not found_states:
-            break
+            return msg if self._unconstrained_sat({{ _target }}) else None
 
-        {%- if satifiable %}
-        if dangr.satisfiable(found_states):
-        {%- else %}
-        if not dangr.satisfiable(found_states):
+        if not self._satisfiable(found_states):
+            return msg
         {%- endif %}
-            return DetectionResult(True, "{{ msg }}")
+        {%- endif %}
 
-    return DetectionResult(False, None)
 
 if __name__ == "__main__":
-
     parser = DangrArgparse("Run binary analysis and detect a beheavorial pattern")
-    parser.add_argument("binary_path", type=str, help="Path to binary to analyze.")
-    args = parser.parse_args()
-    result = detect(args.binary_path, args.config)
+    parser.add_argument("-b",
+                        "--binary-path",
+                        type=str,
+                        required=True,
+                        help="Path to binary to analyze.")
 
-    if result.detected:
-        print(result.message)
+    args = parser.dangr_parse_args()
+    rule = Rule(args.binary_path, args.config)
+    report = rule.analyze(JASM_PATTERN)
+
+    if report:
+        print(report)
         sys.exit(1)
 
     sys.exit(0)

@@ -9,14 +9,14 @@ class DangrGenerator:
         intermediate_repr: dict # type: ignore [type-arg]
     ) -> None:
         self.intermediate_repr = intermediate_repr
-        self.intermediate_repr['simulation_target'] = '_target'
+        self.intermediate_repr['_target'] = '_target'
 
         jasm_rule = cast(JasmRule, intermediate_repr['jasm_rule'])
         editor = JasmRuleEditor(jasm_rule)
 
         editor.add_anchore('_target', pattern_idx=-1)
         self.intermediate_repr['address_captures'] = editor.address_captures()
-        self.intermediate_repr['variables'] += editor.variables()
+        self.intermediate_repr['var_captures'] = editor.variables()
         self.intermediate_repr['jasm_rule'] = editor.get_rule()
 
     def generate_code(self) -> str:
