@@ -24,7 +24,6 @@ class HardwareBreakpoint(DangrAnalysis):
         ptrace_call = jasm_match.addrmatch_from_name("ptrace_call").value
         a1 = self._create_var_from_argument(Argument(1, ptrace_call, 4))
         a3 = self._create_var_from_argument(Argument(3, ptrace_call, 4))
-        self._add_variables([a1, a3])
 
         self._add_constraint(And(Eq(a1, 3), Eq(a3, 848)))
         list_concrete_values = self._concretize_fn_args()

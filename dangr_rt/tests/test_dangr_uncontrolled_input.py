@@ -53,7 +53,6 @@ class UncontrolledInput(DangrAnalysis):
         if all(not self._depends(arg, ptr) for arg in args):
             return False
 
-        self._add_variables([ptr] + args)
         self._add_constraint(IsMax(ptr))
         found_states = self._simulate(deref_address)
         return self._satisfiable(found_states)

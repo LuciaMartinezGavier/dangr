@@ -35,7 +35,6 @@ class AllocZero(DangrAnalysis):
         alloc_call = jasm_match.addrmatch_from_name("alloc_call").value
         size = self._create_var_from_argument(Argument(1, alloc_call, 4))
 
-        self._add_variables([size])
         self._add_constraint(Eq(size, 0))
 
         found_states = self._simulate(alloc_call)

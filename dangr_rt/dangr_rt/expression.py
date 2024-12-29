@@ -16,6 +16,13 @@ class Expression[TypeResult](ABC):
 
     @property
     @abstractmethod
+    def variables(self) -> list[Variable]:
+        """
+        Returns a list with the variables involved in the expression
+        """
+
+    @property
+    @abstractmethod
     def ref_addr(self) -> Address | None:
         """
         Returns the reference address in the binary of the expression.
@@ -25,6 +32,11 @@ class Expression[TypeResult](ABC):
 
     def _operand_expr(self, operand):
         return getattr(operand, 'get_expr', lambda: operand)()
+
+    def _operand_variables(self, operand) -> list[Variable]:
+        if isinstance(operand, Variable):
+            return [operand]
+        return getattr(operand, 'variables', [])
 
     @abstractmethod
     def _to_str(self) -> str:
@@ -46,6 +58,12 @@ class Binary[TypeLeft, TypeRight, TypeResult](Expression[TypeResult]):
         self.op: str = op
         self.lhs = lhs
         self.rhs = rhs
+
+    @override
+    @property
+    def variables(self) -> list[Variable]:
+        return self._operand_variables(self.lhs) +\
+               self._operand_variables(self.rhs)
 
     @override
     @property
@@ -116,6 +134,11 @@ class Not(Expression[AngrBool]):
     @property
     def ref_addr(self) -> Address | None:
         return getattr(self.operand, 'ref_addr', None)
+
+    @override
+    @property
+    def variables(self) -> list[Variable]:
+        return self._operand_variables(self.operand)
 
     @override
     def _to_str(self) -> str:
@@ -203,6 +226,11 @@ class IsMax(Expression[AngrBool]):
     @property
     def ref_addr(self) -> Address | None:
         return self.operand.ref_addr
+
+    @override
+    @property
+    def variables(self) -> list[Variable]:
+        return self._operand_variables(self.operand)
 
     @override
     def _to_str(self) -> str:

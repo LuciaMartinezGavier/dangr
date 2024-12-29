@@ -51,7 +51,6 @@ class SoftwareBreakpoint(DangrAnalysis):
         y = self._create_var_from_capture(jasm_match.varmatch_from_name('y'))
         z = self._create_var_from_capture(jasm_match.varmatch_from_name('z'))
         dx = self._create_deref(ptr)
-        self._add_variables([y,z, dx])
 
         self._add_constraint(Eq(y, z))
         self._add_constraint(Not(Eq(dx, 0xfa1e0ff3)))

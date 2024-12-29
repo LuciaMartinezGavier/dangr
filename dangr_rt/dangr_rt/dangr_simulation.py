@@ -53,14 +53,13 @@ class DangrSimulation:
         self.variables: list[Variable] = []
         self.constraints: list[Expression[AngrBool]] = []
 
-    def add_variables(self, variables: list[Variable]) -> None:
-        self.variables.extend(variables)
-
-    def add_constraints(self, constraints: list[Expression[AngrBool]]) -> None:
-        self.constraints.extend(constraints)
+    def add_constraint(self, constraint: Expression[AngrBool]) -> None:
+        self.constraints.append(constraint)
+        self.variables.extend(constraint.variables)
 
     def remove_constraints(self) -> None:
         self.constraints = []
+        self.variables = []
 
     def simulate(
         self,

@@ -52,10 +52,6 @@ class DangrAnalysis(ABC): # pylint: disable=too-many-instance-attributes
         if self._simulator is None or self._current_function is None:
             raise ValueError("Analysis not properly initialized. Call `set_finding()` first.")
 
-    def _add_variables(self, variables: list[Variable]) -> None:
-        self._jasm_match_set()
-        self._simulator.add_variables(variables) # type: ignore [union-attr]
-
     def _init_match_analysis(self, jasm_match: JasmMatch) -> None:
         """
         Sets the structural finding and updates the current function.
@@ -162,7 +158,7 @@ class DangrAnalysis(ABC): # pylint: disable=too-many-instance-attributes
         Adds a constraints to the analysis
         """
         self._jasm_match_set()
-        self._simulator.add_constraints([constraint]) # type: ignore [union-attr]
+        self._simulator.add_constraint(constraint) # type: ignore [union-attr]
 
     def _remove_constraints(self) -> None:
         """
