@@ -6,7 +6,7 @@
             "5a18::cmp,%rax,%r14"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbp",
                 "5a11"
             ],
@@ -31,7 +31,7 @@
             "5ae4::cmp,%rbp,%r1,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbx",
                 "5ad9"
             ],
@@ -57,7 +57,7 @@
             "757a::cmp,%rax,%rdx,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbx",
                 "7569"
             ],
@@ -82,7 +82,7 @@
             "772a::cmp,%rax,%rbx,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbp",
                 "771f"
             ],
@@ -108,7 +108,7 @@
             "aa13::cmp,%r12d,%eax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "r14",
                 "aa00"
             ],
@@ -132,7 +132,7 @@
             "ab50::cmp,0x1,%eax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "r15",
                 "ab45"
             ],
@@ -158,7 +158,7 @@
             "acbc::cmp,%edx,%ecx,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "r15",
                 "aca9"
             ],
@@ -181,7 +181,7 @@
             "ade4::cmp,%rdx,%rax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "r12",
                 "addc"
             ],
@@ -205,7 +205,7 @@
             "c899::cmp,0x1,%edx,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbx",
                 "c88b"
             ],
@@ -228,7 +228,7 @@
             "d490::cmp,%edx,%eax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rdi",
                 "d48e"
             ],
@@ -252,7 +252,7 @@
             "dcfe::cmp,%rax,%rdx,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbp",
                 "dcf0"
             ],
@@ -277,7 +277,7 @@
             "e2a7::cmp,%rax,%r10,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "e298"
             ],
@@ -303,7 +303,7 @@
             "12fe3::cmp,0x4,%r12,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "12fce"
             ],
@@ -328,7 +328,7 @@
             "134d1::cmp,0x48,%dl,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "134c5"
             ],
@@ -352,7 +352,7 @@
             "13887::cmp,0x100a,%rbx,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "1387f"
             ],
@@ -375,7 +375,7 @@
             "15051::cmp,%r12,%rax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rcx",
                 "1504e"
             ],
@@ -398,7 +398,7 @@
             "15d6d::cmp,%r15,%rbx,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "15d68"
             ],
@@ -423,7 +423,7 @@
             "15e6b::cmp,%rax,%rsi,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "15e5e"
             ],
@@ -448,7 +448,7 @@
             "1636a::cmp,%rdx,%rsi,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "1635e"
             ],
@@ -471,7 +471,7 @@
             "16e73::cmp,0x3,%rbp,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "16e6b"
             ],
@@ -496,7 +496,7 @@
             "1830a::cmp,%r12,%r9,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "r9",
                 "18301"
             ],
@@ -521,7 +521,7 @@
             "183e0::cmp,%r14,%rax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "183d6"
             ],
@@ -544,7 +544,7 @@
             "19a16::cmp,%rbx,%r14,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "19a11"
             ],
@@ -570,7 +570,7 @@
             "19adc::cmp,0x5,%ecx,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "19ac9"
             ],
@@ -595,7 +595,7 @@
             "19bc5::cmp,%r13,%rdx,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "19bb1"
             ],
@@ -620,7 +620,7 @@
             "19c03::cmp,0x147,%eax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "19bf4"
             ],
@@ -643,7 +643,7 @@
             "1cd19::cmp,0x109,%eax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "1cd14"
             ],
@@ -667,7 +667,7 @@
             "1e158::cmp,%r13,%rax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbx",
                 "1e151"
             ],
@@ -693,7 +693,7 @@
             "1e324::cmp,%rax,%rbx,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "1e315"
             ],
@@ -717,7 +717,7 @@
             "1e4d2::cmp,%r13,%rax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbx",
                 "1e4cb"
             ],
@@ -741,7 +741,7 @@
             "1eb29::cmp,%rax,%r13,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbx",
                 "1eb22"
             ],
@@ -765,7 +765,7 @@
             "1fc99::cmp,%rax,%r13,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbx",
                 "1fc92"
             ],
@@ -789,7 +789,7 @@
             "227c8::cmp,0x1,%eax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbx",
                 "227c0"
             ],
@@ -813,7 +813,7 @@
             "23c16::cmp,0x147,%eax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "23c09"
             ],
@@ -836,7 +836,7 @@
             "23d0c::cmp,%rax,%rdi,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "23d04"
             ],
@@ -859,7 +859,7 @@
             "24382::cmp,0xffffffff,%edx,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rax",
                 "2437f"
             ],
@@ -882,7 +882,7 @@
             "24554::cmp,0x5,%edx,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbx",
                 "24551"
             ],
@@ -907,7 +907,7 @@
             "25527::cmp,0x3b9ac9ff,%rax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsi",
                 "2551d"
             ],
@@ -930,7 +930,7 @@
             "261e5::cmp,0x8,%eax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbx",
                 "261e2"
             ],
@@ -955,7 +955,7 @@
             "28c71::cmp,0x3b9ac9ff,%rax,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rsp",
                 "28c62"
             ],
@@ -981,7 +981,7 @@
             "29bf5::cmp,%eax,%r13d,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbp",
                 "29bdc"
             ],
@@ -1007,7 +1007,7 @@
             "29cd5::cmp,%eax,%r13d,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbp",
                 "29cbc"
             ],
@@ -1033,7 +1033,7 @@
             "29dd5::cmp,%eax,%r12d,"
         ],
         "name-captures": {
-            "ptr": [
+            "opcode_addr": [
                 "rbp",
                 "29dbc"
             ],
