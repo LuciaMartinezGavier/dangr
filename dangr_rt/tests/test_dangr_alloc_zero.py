@@ -30,6 +30,20 @@ ALLOC_ZERO_TESTS = [
 ]
 
 class AllocZero(DangrAnalysis):
+    def __init__(self, binary_path: str, config: dict, jasm_pattern: dict) -> None:
+        super().__init__(binary_path, config)
+        self.jasm_pattern = jasm_pattern
+
+    @property
+    @override
+    def _jasm_pattern(self) -> dict:
+        return self.jasm_pattern
+
+    @property
+    @override
+    def meta(self) -> dict:
+        return {}
+
     @override
     def _analyze_asm_match(self, jasm_match: JasmMatch) -> bool:
         alloc_call = jasm_match.addrmatch_from_name("alloc_call").value
@@ -46,5 +60,5 @@ def test_alloc_zero(test_case):
     This a case of use of this proyect it consists on detecting a AllocPool called with
     size 0.
     """
-    analysis = AllocZero(test_case.binary, {})
-    assert analysis.analyze(test_case.jasm_pattern) == test_case.vulnerable
+    analysis = AllocZero(test_case.binary, {}, test_case.jasm_pattern)
+    assert analysis.analyze() == test_case.vulnerable

@@ -19,6 +19,20 @@ class HwBrkpTestCase(BinaryBasedTestCase):
 
 
 class HardwareBreakpoint(DangrAnalysis):
+    def __init__(self, binary_path, config, jasm_pattern) -> None:
+        super().__init__(binary_path, config)
+        self.jasm_pattern = jasm_pattern
+
+    @property
+    @override
+    def _jasm_pattern(self) -> dict:
+        return self.jasm_pattern
+
+    @property
+    @override
+    def meta(self) -> dict:
+        return {}
+
     @override
     def _analyze_asm_match(self, jasm_match: JasmMatch) -> bool:
         ptrace_call = jasm_match.addrmatch_from_name("ptrace_call").value
@@ -52,5 +66,6 @@ def test_hardware_breakpoint_detection(test_case):
     It is reported when the binary is trying to detect a hardware breakpoint
     which is detemined if when the debug registers are being read through the syscall ptrace
     """
-    analysis = HardwareBreakpoint(test_case.binary, {'max_depth': test_case.max_depth})
-    assert analysis.analyze(test_case.jasm_pattern)
+    config = {'max_depth': test_case.max_depth}
+    analysis = HardwareBreakpoint(test_case.binary, config, test_case.jasm_pattern)
+    assert analysis.analyze()

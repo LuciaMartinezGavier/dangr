@@ -195,11 +195,21 @@ class DangrAnalysis(ABC): # pylint: disable=too-many-instance-attributes
         """
         return self._dependency_analyzer.check_dependency(source, target)
 
-    def analyze(self, jasm_pattern) -> str | None:
+    @property
+    @abstractmethod
+    def _jasm_pattern(self) -> dict:
+        pass
+
+    @property
+    @abstractmethod
+    def meta(self) -> dict:
+        pass
+
+    def analyze(self) -> str | None:
         """
         Template method that performs the analysis given a jasm pattern 
         """
-        jasm_matches = JasmAPI().run(self.binary_path, jasm_pattern)
+        jasm_matches = JasmAPI().run(self.binary_path, self._jasm_pattern)
 
         for jasm_match in jasm_matches:
             self._init_match_analysis(jasm_match)

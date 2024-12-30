@@ -44,6 +44,20 @@ SW_BRKP_TESTS = [
 ]
 
 class SoftwareBreakpoint(DangrAnalysis):
+    def __init__(self, binary_path, config, jasm_pattern) -> None:
+        super().__init__(binary_path, config)
+        self.jasm_pattern = jasm_pattern
+
+    @property
+    @override
+    def _jasm_pattern(self) -> dict:
+        return self.jasm_pattern
+
+    @property
+    @override
+    def meta(self) -> dict:
+        return {}
+
     @override
     def _analyze_asm_match(self, jasm_match: JasmMatch) -> bool:
         cmp_address = jasm_match.addrmatch_from_name("cmp-address").value
@@ -78,5 +92,5 @@ def test_software_breakpoint_detection(test_case):
         'reverse': test_case.reverse
     }
 
-    analysis = SoftwareBreakpoint(test_case.binary, config)
-    assert analysis.analyze(test_case.jasm_pattern)
+    analysis = SoftwareBreakpoint(test_case.binary, config, test_case.jasm_pattern)
+    assert analysis.analyze()

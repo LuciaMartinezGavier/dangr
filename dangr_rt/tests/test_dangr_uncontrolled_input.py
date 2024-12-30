@@ -43,6 +43,20 @@ UNCNTRL_IN_TESTS = [
 
 
 class UncontrolledInput(DangrAnalysis):
+    def __init__(self, binary_path, config, jasm_pattern) -> None:
+        super().__init__(binary_path, config)
+        self.jasm_pattern = jasm_pattern
+
+    @property
+    @override
+    def _jasm_pattern(self) -> dict:
+        return self.jasm_pattern
+
+    @property
+    @override
+    def meta(self) -> dict:
+        return {}
+
     @override
     def _analyze_asm_match(self, jasm_match: JasmMatch) -> bool:
         deref_address = jasm_match.addrmatch_from_name("deref-address").value
@@ -70,5 +84,5 @@ def test_uncontrolled_input(test_case):
         'cfg_call_depth': test_case.call_depth,
         'max_depth': test_case.max_depth
     }
-    analysis = UncontrolledInput(test_case.binary, config)
-    assert analysis.analyze(test_case.jasm_pattern) == test_case.expect_detection
+    analysis = UncontrolledInput(test_case.binary, config, test_case.jasm_pattern)
+    assert analysis.analyze() == test_case.expect_detection
