@@ -12,11 +12,18 @@ import sys
 from typing import Final, override
 from dangr_rt import *
 
-JASM_PATTERN: Final[dict] = {'pattern': 'software_breakpoint_pattern'}
-META: Final[dict] = {'authors': ['Lucía Martinez Gavier']}
-
 
 class Rule(DangrAnalysis):
+
+    @override
+    @property
+    def _jasm_pattern(self) -> dict:
+        return {'pattern': 'software_breakpoint_pattern'}
+
+    @override
+    @property
+    def meta(self) -> dict:
+        return {'authors': ['Lucía Martinez Gavier']}
 
     @override
     def _analyze_asm_match(self, jasm_match: JasmMatch) -> str | None:
@@ -53,7 +60,7 @@ if __name__ == "__main__":
 
     args = parser.dangr_parse_args()
     rule = Rule(args.binary_path, args.config)
-    report = rule.analyze(JASM_PATTERN)
+    report = rule.analyze()
 
     if report:
         print(report)
