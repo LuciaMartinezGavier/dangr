@@ -277,7 +277,7 @@ class JasmAPI:
     def __init__(self) -> None:
         pass
 
-    def run(self, binary_path: str, jasm_pattern) -> list[JasmMatch]:
-        jasm_matches = _run_jasm(jasm_pattern, binary_path)
+    def run(self, binary_path: str, jasm_rule: dict) -> list[JasmMatch]:
+        jasm_matches = _run_jasm(jasm_rule['pattern'], binary_path)
         return jasm_matches
 

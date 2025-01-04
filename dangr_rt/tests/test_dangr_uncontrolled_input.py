@@ -50,7 +50,7 @@ class UncontrolledInput(DangrAnalysis):
     @property
     @override
     def _jasm_pattern(self) -> dict:
-        return self.jasm_pattern
+        return {'pattern': self.jasm_pattern}
 
     @property
     @override
