@@ -4,7 +4,7 @@ from dangr_c.parser import DangrParser
 
 def main() -> None:
     arg_parser = argparse.ArgumentParser(
-        description="Generate beheavorial pattern detector from a Dangr rule."
+        description="Generate vulnerability or IoC detector from a Dangr rule."
     )
 
     arg_parser.add_argument(

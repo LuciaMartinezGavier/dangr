@@ -38,8 +38,7 @@ class Rule(DangrAnalysis):
 
 
 if __name__ == "__main__":
-    parser = DangrArgparse(
-        "Run binary analysis and detect a beheavorial pattern")
+    parser = DangrArgparse("Run binary analysis")
     parser.add_argument("-b",
                         "--binary-path",
                         type=str,
