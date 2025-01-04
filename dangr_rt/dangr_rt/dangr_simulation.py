@@ -31,13 +31,6 @@ class Checkpoints(dict[Address, CheckpointGroup]):
         sorted_checkpoints = Checkpoints(sorted(self.items()))
         return sorted_checkpoints
 
-    def last_address(self) -> Address | None:
-        if not self:
-            return None
-
-        last_key = next(reversed(self.sorted()), None)
-        return last_key
-
 
 class DangrSimulation:
     DEFAULT_NUM_FINDS: Final[int] = 64
@@ -72,6 +65,14 @@ class DangrSimulation:
         """
         checkpoints = self._create_checkpoints(init_addr, target)
         init_state = initialize_state(self.project, init_addr, initial_values)
+
+        _, action_elem = list(checkpoints.sorted().items())[0]
+        self._set_state_to_vars(action_elem.variables, init_state)
+        self._add_constraints_to_state(action_elem.constraints, init_state)
+
+        if not init_state.solver.satisfiable():
+            return []
+
         return self._rec_simulate(init_state, 0, checkpoints)
 
     def _rec_simulate(self, active_state, checkpoint_idx: int, checkpoints: Checkpoints):
@@ -110,10 +111,18 @@ class DangrSimulation:
 
     def _create_checkpoints(self, init_addr: Address, target: Address) -> Checkpoints:
         checkpoints = Checkpoints()
+        self._add_default_checkpoints(checkpoints, init_addr, target)
         self._create_var_checkpoints(checkpoints)
         self._create_constr_checkpoints(checkpoints, init_addr)
-        self._add_target_checkpoint(checkpoints, target)
         return checkpoints.sorted()
+
+    def _add_default_checkpoints(self,
+        checkpoints: Checkpoints,
+        init_addr: Address, 
+        target: Address
+    ) -> None:
+        checkpoints[init_addr] = CheckpointGroup([], [])
+        checkpoints[target] = CheckpointGroup([], [])
 
     def _create_var_checkpoints(self, checkpoints: Checkpoints) -> None:
         for variable in self.variables:
@@ -122,8 +131,3 @@ class DangrSimulation:
     def _create_constr_checkpoints(self, checkpoints: Checkpoints, default_addr: Address) -> None:
         for constraint in self.constraints:
             checkpoints.add_constraint(constraint.ref_addr or default_addr, constraint)
-
-    def _add_target_checkpoint(self, checkpoints: Checkpoints, target: Address) -> None:
-        if checkpoints.last_address() is None or\
-           checkpoints.last_address() < target: # type: ignore [operator]
-            checkpoints[target] = CheckpointGroup([], [])
