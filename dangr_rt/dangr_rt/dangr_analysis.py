@@ -130,12 +130,14 @@ class DangrAnalysis(ABC): # pylint: disable=too-many-instance-attributes
             list[ConcreteState]: all the possible combinations of the arguments values
         """
         self._jasm_match_set()
-
-        concrete_args = self._arguments_analyzer.solve_arguments(
-            # already checked in _jasm_match_set() ↓
-            self._current_function, # type: ignore [arg-type]
-            self._get_fn_args()
-        )
+        try:
+            concrete_args = self._arguments_analyzer.solve_arguments(
+                # already checked in _jasm_match_set() ↓
+                self._current_function, # type: ignore [arg-type]
+                self._get_fn_args()
+            )
+        except ValueError:
+            concrete_args = []
 
         if not concrete_args:
             concrete_args.append(ConcreteState())

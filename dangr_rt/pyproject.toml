@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dangr_rt"
-version = "0.2.7"
+version = "0.2.8"
 description = "This library provides the primitives to perform a symbolic analysis"
 authors = ["Lucía Martinez Gavier <lucia.m.gavier@mi.unc.edu.ar>"]
 readme = "README.md"
