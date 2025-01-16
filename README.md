@@ -1,143 +1,73 @@
-# ⚠️ Dangr: Language for Finding Behavioral Patterns in Binaries Using Symbolic Execution 
-
-## Introduction
-As software systems become increasingly complex, vulnerabilities and cyberattacks are on the rise. Traditional static analysis tools struggle to detect obfuscated or compiler-optimized code, creating a need for more advanced techniques. Symbolic execution offers a solution, but no tool currently generalizes these detections. There is a clear need for a tool that simplifies the process of detecting behaviors in binaries using symbolic execution and solvers.
-
-This thesis will contribute a new declarative language, Dangr, for finding behavioral patterns in binaries using symbolic execution and solvers. The tool's ability to detect and deobfuscate opaque constants will provide significant benefits in vulnerability discovery and malware analysis, enhancing the capability to detect indicators of compromise.
-
+# ⚠️ Dangr: Declarative language for finding vulnerabilities and Indicators of Compromise with symbolic execution
 
 ## Abstract
-This thesis proposes the design and implementation of a domain-specific declarative language, Dangr, designed to describe behavioral patterns found in binaries. Dangr code will be transpiled to Python code that uses the binary analysis platform angr, combining symbolic execution with static analysis. This DSL simplifies the process of automatically identifying both obfuscated indicators of compromise and vulnerabilities that are not easily detectable through static analysis alone.
+In a context where cybersecurity threats are becoming increasingly sophisticated, detecting vulnerabilities and indicators of compromise is a critical challenge. Current tools for identifying insecure software, which rely on fingerprinting analysis, are often insufficient when faced with unknown binaries, obfuscations and compiler optimizations. This highlights the need for more adaptive approaches that incorporate semantic analysis to identify behavioral patterns.
 
+This work introduces Dangr, a declarative language designed for detecting vulnerabilities and suspicious behaviors in binaries, based on symbolic execution. Dangr enables the definition of rules that combine syntactic and semantic properties, facilitating the identification of malicious behaviors even in complex scenarios. The system includes two main components: a compiler that translates Dangr rules into Python programs and a runtime library that implements analysis primitives using the angr framework.
 
-## Proposed Solution
-Dangr is defined as a declarative language that describes patterns. It has five main sections: `given`, `where`, `such-that`, `then`, and `report`. The `given` section identifies the structural pattern in the binary; the `where` section restricts relationships between components of that pattern; `such-that` sets constraints on variables; `then` expresses a predicate to evaluate; and `report` prints a message if the predicate is true. There is also a `config` section that sets analysis parameters.
+As part of the validation process, scenarios such as the real-world case of debugging evasion in the attack on liblzma, a component of the XZ backdoor, were studied. The results highlight that Dangr enables the implementation of more precise automated detections by integrating semantic analysis, making it easier to identify complex patterns in binaries.
 
-Example language constructs:
+---
 
-```yml
-config:
-  max_backslice_depth: 10
-given
-  pattern:
-    - add:
-        - $deref:
-            main_reg: "@any-dx"
-        - "@any"
-    - cmp:
-      - "@any-y"
-      - pattern: "@any-z"
-where:
-  - $y -> $dx
-such-that:
-  - $y = $z
-then:
-  - $dx == 0xFA1E0FF3
-report: "Possible debugging evasion detection"
+## Repository Overview
+
+This repository contains the implementation of **Dangr**, a declarative language for detecting vulnerabilities in binaries through symbolic execution. The project is divided into two main components:
+
+1. **Compiler (`dangr_c`)**  
+   The compiler translates Dangr rules written in a declarative syntax into Python programs. These generated programs leverage `dangr_rt` for symbolic execution and semantic analysis.
+
+2. **Runtime Library (`dangr_rt`)**  
+   The runtime library provides the foundational analysis primitives used by the compiled programs. It includes modules for simulation, dependency analysis, expression handling, and more, built on top of the `angr` framework.
+
+---
+
+## Key Features
+
+- **Declarative Rules:** Write concise and expressive rules to detect vulnerabilities and indicators of compromise.
+- **Symbolic Execution:** Analyze binaries at a semantic level, bypassing challenges like obfuscation and optimization.
+- **Custom Analysis Primitives:** Extendable runtime library for advanced analysis needs.
+- **Real-World Applications:** Validated against scenarios such as debugging evasion in the XZ backdoor.
+
+---
+
+## Installation
+
+This project uses [Poetry](https://python-poetry.org/) for dependency management. To install the project and its dependencies:
+
+### Clone the repository:
+```bash
+git clone https://github.com/LuciaMartinezGavier/dangr.git
+cd dangr
 ```
 
-[Read more…](#language-definition)
-
-## Work Plan
-1. Introduction and Problem Definition
-    1. Literature Review: Research previous work related to pattern detection in binaries, symbolic execution, and the use of solvers.
-    2. Identification of Current Limitations: Describe the limitations of current tools like angr in pattern detection.
-    3. Project Justification: Explain why a new declarative language, Dangr, is necessary and how it will address current limitations.
-2. Design of the Dangr Declarative Language
-    1. Language Specification: Define the syntax and semantics of the Dangr language.
-        - `config`: Analysis configuration parameters.
-        - `given`: Identification of structural patterns in the binary.
-        - `where`: Constraints between components of the pattern.
-        - `such-that`: Constraints on variables.
-        - `then`: Predicates to evaluate.
-        - `report`: Report messages when the predicate is true.
-3. Implementation of the Dangr-to-Python Transpiler
-    1. Requirements Analysis: Define the requirements for the transpiler.
-    2. Transpiler Development:
-        - Dangr Language Parser: Implement a parser to convert Dangr code into an intermediate representation.
-        - Python Code Generation: Transpile the intermediate representation to Python code that uses angr.
-    3. Integration with angr: Ensure the generated Python code interacts correctly with the angr platform.
-4. Testing and Validation
-    1. Test Case Development: Create test cases that cover a variety of patterns and behaviors to detect.
-    2. Performance Evaluation:
-        - Transpiler Efficiency: Measure the transpilation and execution time of the generated Python code.
-        - Detection Effectiveness: Evaluate Dangr's ability to detect patterns and vulnerabilities compared to other methods.
-5. Case Study and Applications
-    1. Vulnerability Discovery: Use Dangr to identify vulnerabilities in known software binaries.
-6. Documentation and Thesis Writing
-   1. Thesis Document Writing: Document all findings, language design, implementation, and test results.
-   2. Review and Correction: Review and correct the thesis document to ensure clarity and accuracy.
-
-| Plan de Trabajo                        |      |       |        |        |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
-| -------------------------------------- | ---- | ----- | ------ | ------ | ---- | ---- | ----- | ------ | ------ | ----- | ------ | ------ | ------ | ----- | ----- | ------ | ------ | ----- | ----- | ---- | ----- | ------ | ------ |
-| Tema\\Semana                           | J1-7 | J8-14 | J15-21 | J21-26 | A5-9 | S2-8 | S9-15 | S16-22 | S23-29 | O30-6 | O7--13 | O14-20 | O21-27 | N28-3 | N4-10 | N11-17 | N18-24 | N25-1 | D25-1 | D2-8 | D9-15 | D16-22 | D23-29 |
-| Plan de trabajo                        | x    | x     | x      |        |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
-| Prueba de concepto                     | x    | x     | x      |        |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
-| Introducción y Definición del Problema |      |       |        | x      |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
-| Diseño del Lenguaje Declarativo        | x    | x     |        |        | x    |  x   |       |        |        |       |        |        |        |       |       |        |        |       |       |      |       |        |        |
-| Implementación del Transpilador        |      |       |        |        |      |      |   x   | x      | x      | x     | x      | x      |        |       |       |        |        |       |       |      |       |        |        |
-| Pruebas y Validación                   |      |       |        |        |      |      |       |        |        |       |        | x      | x      |       |       |        |        |       |       |      |       |        |        |
-| Estudio de Caso y Aplicaciones         |      |       |        |        |      |      |       |        |        |       |        |        |        | x     | x     |        |        |       |       |      |       |        |        |
-| Documentación y Redacción              |      |       |        |        |      |      |       |        |        |       |        |        |        |       |       | x      | x      | x     | x     | x    |       |        |        |
-| Preparación y Defensa                  |      |       |        |        |      |      |       |        |        |       |        |        |        |       |       |        |        |       |       | x    | x     |        |
-## References
-- Shoshitaishvili, Y., Wang, R., Salls, C., Stephens, N., Polino, M., Dutcher, A., Grosen, J., Feng, S., Hauser, C., Kruegel, C., & Vigna, G. (2016). SoK: (State of) The Art of War: Offensive Techniques in Binary Analysis. In IEEE Symposium on Security and Privacy.
-- Oravec, R. (2021). Modern Obfuscation Techniques (Master's thesis). Masaryk University, Faculty of Informatics.
-- Mérida Renny, J. (2024). JASM: una herramienta para detectar indicadores de compromiso en binarios (Trabajo Especial). Universidad Nacional de Córdoba, Facultad de Matemática, Astronomía, Física y Computación.
-- Eyrolles, N. (2017). Obfuscation with Mixed Boolean-Arithmetic Expressions: Reconstruction, Analysis and Simplification Tools (Doctoral thesis). Paris-Saclay University (COmUE).
-
-
-# Language definition
-
-### `given` section
-The `given` section takes a pattern from JASM, which matches sintactically. This is intended to find the addresses where symbolic execution will be focused. It also defines variables that will be used in the rest of the code, i.e., variables mentioned in given can be used in all subsequent sections.
-
-Example:
-
-```yml
-given:
-  pattern
-    - $or:
-      - add
-      - mov
-    - cmp
+### Install dependencies:
+```bash
+cd dangr_c
+poetry shell
+poetry install
 ```
 
-### `where`
-The `where` section will reduce the number of findings by setting some constraints over the symbolic variables.
-For example, here are the restrictions on the data flow `$a -> $b`. And some declaration of variables such as `a1 := argument(ptrace-call, 1)`
+### Define Rules
+- Write your rules in the Dangr declarative syntax (e.g., .yaml files).
+- Find the syntax in [dangr_c/README.md](dangr_c/README.md).
 
-```yml
-    where:
-    - $dx := *ptr
-    - $y -> $dx
+### Compile Rules
+- Use the compiler `dangr_c` to generate Python code:
+```bash
+python dangr_c/dangr_c/main.py <rule.yaml>
 ```
 
-### `such-that` section
-The `such-that` section will set solver goals. For example,
+### Run Analysis
+- Execute the generated Python script to analyze the target binary:
+- use `python <rule.py> --help` to learn more about the possible configurations
 
-```yml
-such-that:
-  - $y = $z
+```bash
+python <rule.py> --binary <target_binary>
 ```
 
-Here the predicate `y = z` is forced to be True, so the possible values of both variables will be constrained to satisfy that condition.
+## Testing
+To run the test suite, use the following command in the respective directories:
 
-(TODO) After the constraints are set, there is a check for satisfability.
-
-### then section
-In this section, a predicate is evaluated with all the resulting possible values.
-
-For example,
-```
-then:
-  - $dx == 0xFA1E0FF3
-```
-
-### report section
-If the condition in the then section is met, the message in the report section will be printed.
-
-Example:
-```yml
-report: "Dangr!"
+```bash
+pytest
 ```

@@ -1,157 +1,168 @@
-# Dangr compiler
 
-## Getting started
+# Dangr Compiler
+
+The Dangr compiler is responsible for translating declarative rules into Python programs. These programs, when executed, perform symbolic execution using the angr framework to detect specified patterns or vulnerabilities in binaries.
+
+
+## Usage
+
+## Compiling Rules
+
+To compile a rule written in Dangr's declarative language, use:
 
 ```bash
-# install
-poetry shell
-poetry install
-
-# test
-pytest
-
-# Run
-python dangr_c.py <rule_name>.yml
+python dangr_c.py <rule_name>.yaml
 ```
 
-The program will generate a `<rule_name>.py` file that has the code necessary
-to detect the pattern specified in `<rule_name>.yaml` (in the same directory as the given file).
+This will generate a file named `<rule_name>.py` in the same directory as the given rule.
 
-You can find some rule examples in `test_files/*.yaml`.
+## Running the Generated Code
 
-The generated file can be imported as a library with
+### As a Python Library
+
+You can import the generated code and use it programmatically:
 
 ```python
-from <rule_name> import detect
+from <rule_name> import Rule
 
-binary_path = "path/to/the/rule.yaml"
-max_depth = 2
+binary_path = 'path/to/binary'
+config = {
+    'max_depth': 3,
+    'timeout': 10 
+}
 
-detection_result = detect(binary_path, max_depth)
-if detection_result.detected:
-    print(detection_result.message)
-else:
-    print("Not found")
+rule = Rule(binary_path, config)
+report = rule.analyze()
+print(report)
 ```
 
-Or can be used with the CLI:
+### From the Command Line
+
+Alternatively, execute the generated script directly:
 
 ```bash
-python <rule_name>.py --max-depth <n> --binary-path <path/to/the/rule.yaml>
+python <rule_name>.py --binary-path <path/to/the/binary> --max-depth 3 --timeout 10
+```
+Use `python <rule_name>.py --help` to learn more about the config options.
+
+
+## Dangr Language
+
+The Dangr declarative language is structured into seven stages with YAML syntax, each with a specific purpose. Some stages are optional:
+
+### 1. Meta
+
+A metadata dictionary that can include details like author and license. This data is included in the generated code but not validated or used elsewhere.
+
+```YAML
+meta:
+  author: Lucía Martinez Gavier
+  type: debugging evation
+  cve: cve-2024-3094
 ```
 
-The max depth argument is the maximum number of steps to execute backwards when solving arguments. It is ignored when `solve_arguments` is `False` and for both the library or CLI, max-depth is optional.
+### 2. Config
 
-<!-- - `call_depth` (`int`): the call depth considered when constructing the dependency graph -->
+Optional configuration for the generated code:
 
-## Dangr language
+- **`solve_arguments`** (`bool`): If `True`, arguments are concretized before analysis. Improves accuracy but may reduce performance. Default is `False`.
+- **`little_endian`** (`bool`): Specifies memory endianness. Defaults to architecture settings.
 
-The language is declarative and very structured. It has 7 stages (some are optional).
+```YAML
+config:
+    solve_arguments: true
+```
 
+### 3. Given
 
-## 1. Meta
+Defines the **structural pattern**, acting as the first filter for analysis. The syntax follows [JASM](https://github.com/JukMR/JASM).
 
-Here it goes any dictionary with metadata such as authors, licence, ...
-It will be included in the generated code as a dictionary and is not validated so any info could go here.
-It is not used anywere else.
+**Disclaimer!** We are still working on the integration with JASM. We need some extra features, and then we will be able to integrate it. Right now, the JASM output is mocked.
 
-## 2. Config
+### 4. Where
 
-All the arguments that influence the generated code have to be specified here. They are all optional.
-The posible arguments are:
+Defines **dependency and assignment expressions** to refine the findings:
 
-- `solve_arguments` (`bool`): By default is `False`. If `True` the arguments of the function will be concretized before the analysis. Note that the analysis is more complete but the performance might decreace.
-- `little_endian` (`bool`): By default it follows the architecture. If `true` the memory contents will be reversed.
-
-## 3. given
-This section defines the **structural pattern**, it is the first filter and fastest part of the analysis.
-
-See [JASM](https://github.com/JukMR/JASM) for the syntax.
-
-
-## 4. where
-
-List of `<where-expr>`.
-A where expression can be an assignment such as `foo = *ptr` or `foo = bar` or `foo = arg(1, call_addr, 4)`. Namely,
-any variable can be assigned (and declared) as:
-- the dereference of other variable
-- other variable
-- the argument of some function call
-    - `arg(<argument_index>, <call_address_capture>, <argument_byte_size>)`
-    - The argument supports arguments with index form 1 to 6.
-
-Also, a where expression can be a logic expression of dependencies.
-
-A dependency is written as `(foo -> bar)`. This means that the generated code will check if
-variable `foo` affects the value of `bar`, in other words, `bar` depends on `foo`.
-
-The following are valid dependency expressions:
+- **Assignment Syntax:**
 ```yaml
-- (a -> b) and (b -> c) and (not (a-> c))
-- (g -> b)
-- (_anyarg -> a)
+where:
+  - foo = *ptr
+  - bar = arg(1, call_addr, 4)
 ```
 
-`_anyarg` referes to any argument of the current function being analyzed,
-i.e. the function where the structural pattern matched.
+- **Dependency Expressions:**
+```yaml
+where:
+  - (a -> b) and (b -> c) and (not (a -> c))
+  - (_anyarg -> a)
+```
+`_anyarg` refers to any argument of the current function.
 
-All findings that don't satisfy the dependency expressions will be filtered
+
+This is the `where` expresions grammar:
 
 ```
-<where-expr>: <assgn> | <dep-expr>
-
-<assgn>: <lvalue> = <rvalue>
-<lvalue>: <variable>
-<rvalue>: <deref> | <arg> | <variable>
-<deref>: *<variable>
-<arg>: arg(<idx>, <addr_capture>, <size>)
-
-<dep>: (<source> -> <target>)
-<source>: <variable> | '_anyarg'
-<target>: <variable> | '_anyarg'
-
-<dep-expr>: (<dep>)
-          | <dep-expr> or <dep-expr>
-          | <dep-expr> and <dep-expr>
-          | not <dep-expr>
+<where>::= <assign> | <dep_expr>
+<assign>::= <identifier> = <rv>
+<rv>::= <deref> | <arg> | <identifier>
+<deref>::= *<identifier>
+<arg>::= arg(<integer>, <identifier>, <integer>)
+<dep_expr>::= <dep>
+            | <dep_expr> or <dep_expr>
+            | <dep_expr> and <dep_expr>
+            | not <dep_expr>
+<dep>::= (<dep_var> -> <dep_var>)
+<dep_var>::= <identifier> | _anyarg
 ```
 
-## 5. shuch-that
-List of `<such-that-expr>`. A such-that expression can be any logical expression that uses literals or variables
-declared in the where or given sections.
+### 5. Such-That
 
-Each expression here will set a constraint goal in the analysis.
+Lists logical constraints using variables from the `given` or `where` sections. Examples:
 
-Each constraint is bounded to an execution state, which corresponds to a certain code address.
-The state (or states) for each constraint is the state where the last variable is defined.
-
-```
-<such-that-expr>: <arith-expr> = <arith-expr>
-                | <such-that-expr> and <such-that-expr>
-                | <such-that-expr> or <such-that-expr>
-                | not <such-that-expr>
-                | upper_unbounded(<arith-expr>)
-
-<arith-expr>: <variable> | <constant>
-            | <arith-expr> + <arith-expr>
-            | <arith-expr> * <arith-expr>
-            | <arith-expr> - <arith-expr>
-            | <arith-expr> / <arith-expr>
-
+```yaml
+such-that:
+  - upper_unbounded(a + b)
+  - (x + y) = 10
 ```
 
-## 6. then
-The then section is just a boolean that indicates if the analysis is supposed to find a
-satisfiable state or not.
+This is the `such-that` expressions grammar:
 
 ```
-<then-expr>: True | False
+<such-that>::= <operand> and <operand>
+             | <operand> or <operand>
+             | not <operand>
+             | <operand>
+<operand>::= <eq> | <upper_unbounded>
+<eq>::= <arith> = <arith>
+<upper_unbounded>::= upper_unbounded(<arith>)
+<arith>::= <integer> | <identifier>
+         | <arith> * <arith>
+         | <arith> / <arith>
+         | <arith> + <arith>
+         | <arith> - <arith>
 ```
-By default it's True.
 
-## 7. report
-Here a message is set, so if the pattern is found in the binary this message is returned. 
+### 6. Then
 
+Indicates whether the analysis seeks a satisfiable state:
+
+```yaml
+then: True  # Default
 ```
-<report-expr>: "<str>"
+
+### 7. Report
+
+Specifies a message to be returned when a pattern is detected:
+
+```yaml
+report: "Suspicious behavior detected!"
+```
+
+## Examples
+
+Example rule files can be found in the `test_files` directory. To see Dangr in action, try running the provided examples:
+
+```bash
+python dangr_c.py test_files/software_breakpoint.yaml
+python test_files/software_breakpoint.py --binary-path /path/to/binary
 ```
