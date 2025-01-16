@@ -48,13 +48,11 @@ class SoftwareBreakpoint(DangrAnalysis):
         super().__init__(binary_path, config)
         self.jasm_pattern = jasm_pattern
 
-    @property
     @override
     def _jasm_pattern(self) -> dict:
         return {'pattern': self.jasm_pattern}
 
 
-    @property
     @override
     def meta(self) -> dict:
         return {}

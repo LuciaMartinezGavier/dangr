@@ -16,12 +16,10 @@ from dangr_rt import *
 class Rule(DangrAnalysis):
 
     @override
-    @property
     def _jasm_pattern(self) -> dict:
         return {'pattern': 'mock small_bmp_support_lib_12c5'}
 
     @override
-    @property
     def meta(self) -> dict:
         return {}
 

@@ -16,12 +16,10 @@ from dangr_rt import *
 class Rule(DangrAnalysis):
 
     @override
-    @property
     def _jasm_pattern(self) -> dict:
         return {'pattern': 'mock hardware_breakpoint'}
 
     @override
-    @property
     def meta(self) -> dict:
         return {}
 

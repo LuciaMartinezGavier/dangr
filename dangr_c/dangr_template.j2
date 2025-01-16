@@ -16,12 +16,10 @@ from dangr_rt import *
 class Rule(DangrAnalysis):
 
     @override
-    @property
     def _jasm_pattern(self) -> dict:
         return {{ jasm_rule | safe }}
 
     @override
-    @property
     def meta(self) -> dict:
         return {{ meta | safe }}
 
