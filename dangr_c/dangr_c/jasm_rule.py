@@ -38,11 +38,11 @@ class JasmRuleEditor:
             case 'mock hardware_breakpoint':
                 return []
             case 'software_breakpoint_pattern':
-                return ['y', 'z', 'opcode_addr']
+                return ['cmp_operand_1', 'cmp_operand_2', 'opcode_addr']
             case 'mock small_bmp_support_lib_12c5':
                 return []
             case 'mock uncontrolled_input_0078':
-                return ['ptr']
+                return ['ptr', 'idx', 'size']
 
 
     def address_captures(self) -> list[str]:

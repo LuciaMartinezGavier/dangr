@@ -30,10 +30,12 @@ class Rule(DangrAnalysis):
         msg = "Debugging evasion through hardware breakpoint detection"
         ptrace_call = jasm_match.addrmatch_from_name("ptrace_call").value
         _target = jasm_match.addrmatch_from_name("_target").value
-        a1 = self._create_var_from_argument(Argument(1, ptrace_call, 4))
-        a3 = self._create_var_from_argument(Argument(3, ptrace_call, 4))
-        self._add_constraint(Eq(a1, 3))
-        self._add_constraint(Eq(a3, 848))
+        ptrace_arg1 = self._create_var_from_argument(
+            Argument(1, ptrace_call, 4))
+        ptrace_arg3 = self._create_var_from_argument(
+            Argument(3, ptrace_call, 8))
+        self._add_constraint(Eq(ptrace_arg1, 3))
+        self._add_constraint(Eq(ptrace_arg3, 0x350))
         args_list = self._concretize_fn_args()
 
         for args in args_list:

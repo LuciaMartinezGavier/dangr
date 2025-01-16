@@ -27,13 +27,17 @@ class Rule(DangrAnalysis):
 
     @override
     def _analyze_asm_match(self, jasm_match: JasmMatch) -> str | None:
-        msg = "Pointer from user input is not bounded"
+        msg = "Uncontrolled user pointer was dereferenced and assigned"
         _target = jasm_match.addrmatch_from_name("_target").value
         ptr = self._create_var_from_capture(
             jasm_match.varmatch_from_name("ptr"))
+        idx = self._create_var_from_capture(
+            jasm_match.varmatch_from_name("idx"))
+        size = self._create_var_from_capture(
+            jasm_match.varmatch_from_name("size"))
         if not any(self._depends(_arg, ptr) for _arg in self._get_fn_args()):
             return
-        self._add_constraint(IsMax(ptr))
+        self._add_constraint(IsMax(Add(ptr, Mul(idx, size))))
         found_states = self._simulate(_target)
         if self._satisfiable(found_states):
             return msg

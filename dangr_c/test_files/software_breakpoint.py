@@ -23,20 +23,23 @@ class Rule(DangrAnalysis):
     @override
     @property
     def meta(self) -> dict:
-        return {'authors': ['Lucía Martinez Gavier']}
+        return {}
 
     @override
     def _analyze_asm_match(self, jasm_match: JasmMatch) -> str | None:
         msg = "Debugging evasion through software breakpoint detection"
         _target = jasm_match.addrmatch_from_name("_target").value
-        y = self._create_var_from_capture(jasm_match.varmatch_from_name("y"))
-        z = self._create_var_from_capture(jasm_match.varmatch_from_name("z"))
+        cmp_operand_1 = self._create_var_from_capture(
+            jasm_match.varmatch_from_name("cmp_operand_1"))
+        cmp_operand_2 = self._create_var_from_capture(
+            jasm_match.varmatch_from_name("cmp_operand_2"))
         opcode_addr = self._create_var_from_capture(
             jasm_match.varmatch_from_name("opcode_addr"))
         opcode = self._create_deref(opcode_addr)
-        if not (self._depends(opcode, y) or self._depends(opcode, z)):
+        if not (self._depends(opcode, cmp_operand_1)
+                or self._depends(opcode, cmp_operand_2)):
             return
-        self._add_constraint(Eq(y, z))
+        self._add_constraint(Eq(cmp_operand_1, cmp_operand_2))
         self._add_constraint(Not(Eq(opcode, 0xFA1E0FF3)))
         args_list = self._concretize_fn_args()
 

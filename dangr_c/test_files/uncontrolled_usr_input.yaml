@@ -1,12 +1,15 @@
 ---
 given:
   pattern: 'mock uncontrolled_input_0078'
-  #   - mov:
-  #     - "$any"
-  #     - "@deref":
-  #       - main_reg: "$any-ptr"
+  # - mov:
+  #   - "$any"
+  #   - "@deref":
+  #     - main_reg: "$any-ptr"
+  #       register_multiplier: "@any-idx"
+  #       constant_multiplier: "@any-size"
+  #   address-capture: deref-address
 where:
   - (_anyarg -> ptr)
 such-that:
-  - upper_unbounded(ptr)
-report: "Pointer from user input is not bounded"
+  - upper_unbounded(ptr + idx*size)
+report: "Uncontrolled user pointer was dereferenced and assigned"

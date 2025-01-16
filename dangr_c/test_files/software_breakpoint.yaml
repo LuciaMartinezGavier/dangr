@@ -1,12 +1,9 @@
 ---
-meta:
-  authors:
-    - Lucía Martinez Gavier
 config:
   solve_arguments: true
 given:
   pattern: 'software_breakpoint_pattern'
-  # pattern:
+  # JASM PATTERN OF THE MOCKED ANSWER:
   # - $or:
   #   - mov:
   #     - $deref:
@@ -14,18 +11,18 @@ given:
   #     - "@any"
   #   - add:
   #     - $deref:
-  #       main_reg: "@any-opcode_addr"
+  #       main_reg: "@any-opcode"
   #     - "@any"
   # - "@any":
   #   times: 2
   # - cmp:
-  #   - "@any-y"
-  #   - "@any-z"
+  #   - "@any-cmp_operand_1"
+  #   - "@any-cmp_operand_2"
 where:
   - opcode = *opcode_addr
-  - (opcode -> y) or (opcode -> z)
+  - (opcode -> cmp_operand_1) or (opcode -> cmp_operand_2)
 such-that:
-  - y = z
-  - not (opcode = 0xFA1E0FF3)
+  - cmp_operand_1 = cmp_operand_2
+  - not (opcode = 0xFA1E0FF3) # ENDBR64 opcode
 then: false
 report: "Debugging evasion through software breakpoint detection"
